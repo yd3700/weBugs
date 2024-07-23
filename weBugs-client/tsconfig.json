@@ -6,7 +6,9 @@
     "jsx": "react",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "types": ["react-native", "react-native-vector-icons"],
+    "typeRoots": ["./node_modules/@types"]
   },
   "exclude": [
     "node_modules"
