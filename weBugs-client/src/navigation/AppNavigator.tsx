@@ -1,14 +1,15 @@
 // src/navigation/AppNavigator.tsx
-import React from "react";
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import SignUpScreen from '../screens/SignUpScreen';
-import LoginScreen from '../screens/LoginScreen';
 import HomeScreen from '../screens/HomeScreen';
+import LoginScreen from '../screens/LoginScreen';
+import SignUpScreen from '../screens/SignUpScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import RequestScreen from '../screens/RequestScreen';
-import { RootStackParamList } from '../types/navigation';
+import ChatScreen from '../screens/ChatScreen'; // ChatScreen import
+import { RootStackParamList } from '../types/navigation'; // 경로는 실제 위치에 맞게 조정하세요
 import Icon from 'react-native-vector-icons/Ionicons';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -51,12 +52,11 @@ const HomeTabs = () => {
 const AppNavigator = () => {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Login">
+      <Stack.Navigator>
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
-        <Stack.Screen name="Home" component={HomeTabs} options={{ headerShown: false }} />
-        <Stack.Screen name="Profile" component={ProfileScreen} />
-        <Stack.Screen name="Request" component={RequestScreen} />
+        <Stack.Screen name="HomeTabs" component={HomeTabs} options={{ headerShown: false }} />
+        <Stack.Screen name="Chat" component={ChatScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
