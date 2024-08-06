@@ -1,4 +1,3 @@
-// firebaseConfig.ts
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
@@ -82,9 +81,40 @@ const createUser = async (userId: string, name: string, email: string, phone: st
       timestamp: firebase.firestore.FieldValue.serverTimestamp(),
     };
 
-    await firestore.collection('chats').doc(chatId).update({
-      messages: firebase.firestore.FieldValue.arrayUnion(newMessage),
-    });
+    const chatRef = firestore.collection('chats').doc(chatId);
+
+    try {
+      await chatRef.update({
+        messages: firebase.firestore.FieldValue.arrayUnion(newMessage),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (error: any) {
+      console.error("Error updating chat:", error); // 콘솔 로그 추가
+      if (error.code === 'not-found') {
+        await chatRef.set({
+          messages: [newMessage],
+          participants: [senderId],
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+      } else {
+        throw error;
+      }
+    }
+    
   };
 
-export { app, auth, firestore,  createUser, createServiceRequest, createProviderProfile, createMatch, createChatMessage, analytics, firebase };
+// 채팅 목록 가져오기
+const getChatList = async (userId: string) => {
+  const chatList: any[] = [];
+  const snapshot = await firestore.collection('chats')
+    .where('participants', 'array-contains', userId)
+    .orderBy('updatedAt', 'desc')
+    .get();
+  snapshot.forEach(doc => {
+    chatList.push({ id: doc.id, ...doc.data() });
+  });
+  return chatList;
+};
+
+export { app, auth, firestore, createUser, createServiceRequest, createProviderProfile, createMatch, createChatMessage, getChatList, analytics, firebase };

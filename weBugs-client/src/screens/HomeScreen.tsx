@@ -1,5 +1,6 @@
+// src/screens/HomeScreen.tsx
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, Post } from '../types/navigation'; // 경로는 실제 위치에 맞게 조정하세요
@@ -7,7 +8,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { auth, firestore } from '../../firebaseConfig'; // Firebase imports
 
 const HomeScreen = () => {
-  const navigation = useNavigation<StackNavigationProp<RootStackParamList, 'Chat'>>();
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const [refreshing, setRefreshing] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -47,7 +48,7 @@ const HomeScreen = () => {
   };
 
   const renderItem = ({ item }: { item: Post }) => (
-    <TouchableOpacity onPress={() => navigation.navigate('Chat', { chatId: item.id })}>
+    <TouchableOpacity onPress={() => navigation.navigate('RequestDetails', { post: item })}>
       <View style={styles.postContainer}>
         <Image source={{ uri: item.image }} style={styles.postImage} />
         <View style={styles.postDetails}>

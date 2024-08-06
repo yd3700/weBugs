@@ -8,8 +8,10 @@ import LoginScreen from '../screens/LoginScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import RequestScreen from '../screens/RequestScreen';
-import ChatScreen from '../screens/ChatScreen'; // ChatScreen import
-import { RootStackParamList } from '../types/navigation'; // 경로는 실제 위치에 맞게 조정하세요
+import RequestDetailsScreen from '../screens/RequestDetailsScreen';
+import ChatScreen from '../screens/ChatScreen';
+import ChatListScreen from '../screens/ChatListScreen';
+import { RootStackParamList } from '../types/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -37,6 +39,15 @@ const HomeTabs = () => {
         }}
       />
       <Tab.Screen
+        name="ChatList"
+        component={ChatListScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="chatbubble-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
         name="Profile"
         component={ProfileScreen}
         options={{
@@ -56,6 +67,7 @@ const AppNavigator = () => {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
         <Stack.Screen name="HomeTabs" component={HomeTabs} options={{ headerShown: false }} />
+        <Stack.Screen name="RequestDetails" component={RequestDetailsScreen} />
         <Stack.Screen name="Chat" component={ChatScreen} />
       </Stack.Navigator>
     </NavigationContainer>
