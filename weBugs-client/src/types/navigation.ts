@@ -1,17 +1,12 @@
-// src/types/navigation.ts
 export type RootStackParamList = {
-  Home: undefined;
   Login: undefined;
   SignUp: undefined;
   HomeTabs: undefined;
-  Chat: { chatId: string };
   RequestDetails: { post: Post };
-  Profile: undefined;
-  Request: { post: Post };
-  ChatList: { post: Post };
+  Chat: { chatId: string };
+  ChatList: undefined;
 };
 
-// Post 타입 정의
 export type Post = {
   id: string;
   title: string;
@@ -19,4 +14,13 @@ export type Post = {
   location: string;
   price: string;
   image: string;
+  userId: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type Message = {
+  content: string;
+  senderId: string;
+  timestamp: string;
 };

@@ -1,4 +1,3 @@
-// src/screens/ChatListScreen.tsx
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -12,7 +11,7 @@ type Chat = {
   id: string;
   participants: string[];
   lastMessage: string;
-  lastTimestamp: string;
+  lastTimestamp: any; // 'any'로 지정하여 다양한 타입을 허용합니다.
 };
 
 const ChatListScreen = () => {
@@ -44,14 +43,23 @@ const ChatListScreen = () => {
     fetchChats();
   }, []);
 
-  const renderItem = ({ item }: { item: Chat }) => (
-    <TouchableOpacity onPress={() => navigation.navigate('Chat', { chatId: item.id })}>
-      <View style={styles.chatItem}>
-        <Text style={styles.chatText}>{item.lastMessage}</Text>
-        <Text style={styles.timestamp}>{new Date(item.lastTimestamp).toLocaleString()}</Text>
-      </View>
-    </TouchableOpacity>
-  );
+  const renderItem = ({ item }: { item: Chat }) => {
+    // lastTimestamp를 Date 객체로 변환합니다.
+    const displayTimestamp = item.lastTimestamp instanceof Date
+      ? item.lastTimestamp
+      : item.lastTimestamp?.toDate ? item.lastTimestamp.toDate() : new Date(item.lastTimestamp);
+
+    return (
+      <TouchableOpacity onPress={() => navigation.navigate('Chat', { chatId: item.id })}>
+        <View style={styles.chatItem}>
+          <Text style={styles.chatText}>{item.lastMessage}</Text>
+          {item.lastTimestamp && (
+            <Text style={styles.timestamp}>{displayTimestamp.toLocaleString()}</Text>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   if (isLoading) {
     return (
