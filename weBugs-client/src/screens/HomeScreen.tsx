@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList, Post } from '../types/navigation'; // 경로는 실제 위치에 맞게 조정하세요
+import { RootStackParamList, ServiceRequest } from '../types/navigation'; // 경로는 실제 위치에 맞게 조정하세요
 import Icon from 'react-native-vector-icons/Ionicons';
 import { auth, firestore } from '../../firebaseConfig'; // Firebase imports
 
@@ -12,7 +12,7 @@ const HomeScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<ServiceRequest[]>([]);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(user => {
@@ -31,10 +31,12 @@ const HomeScreen = () => {
   const fetchPosts = async () => {
     try {
       const snapshot = await firestore.collection('serviceRequests').get();
-      const fetchedPosts: Post[] = snapshot.docs.map(doc => ({
+      const fetchedPosts: ServiceRequest[] = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-      })) as Post[];
+        createdAt: doc.data().createdAt.toDate(), // Firestore Timestamp를 Date로 변환
+        updatedAt: doc.data().updatedAt.toDate(), // Firestore Timestamp를 Date로 변환
+      })) as ServiceRequest[];
       setPosts(fetchedPosts);
     } catch (error) {
       console.error("Error fetching posts: ", error);
@@ -47,14 +49,14 @@ const HomeScreen = () => {
     setRefreshing(false);
   };
 
-  const renderItem = ({ item }: { item: Post }) => (
-    <TouchableOpacity onPress={() => navigation.navigate('RequestDetails', { post: item })}>
+  const renderItem = ({ item }: { item: ServiceRequest }) => (
+    <TouchableOpacity onPress={() => navigation.navigate('RequestDetails', { request: item })}>
       <View style={styles.postContainer}>
-        <Image source={{ uri: item.image }} style={styles.postImage} />
+        {/* 기본 이미지가 없으므로, image 필드는 제거 */}
         <View style={styles.postDetails}>
           <Text style={styles.postTitle}>{item.title}</Text>
           <Text style={styles.postLocation}>{item.location}</Text>
-          <Text style={styles.postPrice}>{item.price}</Text>
+          <Text style={styles.postPrice}>{item.transactionType === 'money' ? `${item.amount?.toLocaleString()}원` : '봉사'}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -121,11 +123,6 @@ const styles = StyleSheet.create({
     padding: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#ccc',
-  },
-  postImage: {
-    width: 80,
-    height: 80,
-    marginRight: 15,
   },
   postDetails: {
     flex: 1,
