@@ -33,8 +33,12 @@ const createChatRoom = async (currentUserId: string, otherUserId: string) => {
       await chatRef.set({
         participants: [currentUserId, otherUserId],
         messages: [],
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        createdAt: firebase.firestore.Timestamp.now(),
+        updatedAt: firebase.firestore.Timestamp.now(),
+        lastRead: {
+          [currentUserId]: firebase.firestore.Timestamp.now(),
+          [otherUserId]: firebase.firestore.Timestamp.now()
+        }
       });
       console.log("New chat room created:", chatId);
     } else {
@@ -59,30 +63,18 @@ const createChatMessage = async (chatId: string, senderId: string, recipientId: 
     senderId,
     recipientId,
     content,
-    timestamp: new Date().toISOString(),
+    timestamp: firebase.firestore.Timestamp.now(),
+    read: false
   };
 
   const chatRef = firestore.collection('chats').doc(chatId);
   
   try {
-    const chatDoc = await chatRef.get();
-    if (!chatDoc.exists) {
-      // 채팅방이 존재하지 않으면 새로 생성
-      await chatRef.set({
-        messages: [newMessage],
-        participants: [senderId, recipientId],
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
-      console.log("Chat room and first message created:", chatId);
-    } else {
-      // 채팅방이 존재하면 메시지 추가
-      await chatRef.update({
-        messages: firebase.firestore.FieldValue.arrayUnion(newMessage),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
-      console.log("Message added to chat room:", chatId);
-    }
+    await chatRef.update({
+      messages: firebase.firestore.FieldValue.arrayUnion(newMessage),
+      updatedAt: firebase.firestore.Timestamp.now()
+    });
+    console.log("Message added to chat room:", chatId);
     return newMessage;  // 생성된 메시지 반환
   } catch (error: any) {
     console.error("Error updating chat:", error);
@@ -110,12 +102,76 @@ const getChatList = async (userId: string) => {
   }
 };
 
+// 메시지를 읽음 상태로 표시
+const markMessageAsRead = async (chatId: string, userId: string) => {
+  const chatRef = firestore.collection('chats').doc(chatId);
+  
+  try {
+    await chatRef.update({
+      [`lastRead.${userId}`]: firebase.firestore.Timestamp.now()
+    });
+    // console.log("Messages marked as read for user:", userId);
+  } catch (error) {
+    console.error("Error marking messages as read:", error);
+    throw error;
+  }
+};
+
+// 읽지 않은 메시지 수 가져오기
+const getUnreadMessageCount = async (userId: string) => {
+  try {
+    const snapshot = await firestore.collection('chats')
+      .where('participants', 'array-contains', userId)
+      .get();
+
+    let unreadCount = 0;
+    snapshot.forEach(doc => {
+      const chatData = doc.data();
+      const lastRead = chatData.lastRead[userId] || new firebase.firestore.Timestamp(0, 0);
+      if (chatData.messages) {
+        unreadCount += chatData.messages.filter((message: any) => 
+          message.timestamp > lastRead && message.senderId !== userId
+        ).length;
+      }
+    });
+
+    return unreadCount;
+  } catch (error) {
+    console.error("Error getting unread message count:", error);
+    throw error;
+  }
+};
+
+// 실시간으로 읽지 않은 메시지 수 감시
+const listenToUnreadMessageCount = (userId: string, callback: (count: number) => void) => {
+  return firestore.collection('chats')
+    .where('participants', 'array-contains', userId)
+    .onSnapshot(snapshot => {
+      let unreadCount = 0;
+      snapshot.forEach(doc => {
+        const chatData = doc.data();
+        const lastRead = chatData.lastRead[userId] || new firebase.firestore.Timestamp(0, 0);
+        if (chatData.messages) {
+          unreadCount += chatData.messages.filter((message: any) => 
+            message.timestamp > lastRead && message.senderId !== userId
+          ).length;
+        }
+      });
+      callback(unreadCount);
+    }, error => {
+      console.error("Error listening to unread message count:", error);
+    });
+};
+
 export { 
   auth, 
   firestore, 
   storage,
   createChatRoom,
   createChatMessage, 
-  getChatList, 
+  getChatList,
+  markMessageAsRead,
+  getUnreadMessageCount,
+  listenToUnreadMessageCount,
   firebase 
 };

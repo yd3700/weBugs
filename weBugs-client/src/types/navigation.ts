@@ -1,4 +1,5 @@
 import { ImagePickerResponse } from 'react-native-image-picker';
+import { firebase } from '../../firebaseConfig';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -31,7 +32,8 @@ export type Message = {
   content: string;
   senderId: string;
   recipientId: string;
-  timestamp: string;
+  timestamp: firebase.firestore.Timestamp;  // 수정: 문자열에서 Firestore Timestamp로 변경
+  read: boolean;  // 'read' 속성 추가
 };
 
 export type User = {

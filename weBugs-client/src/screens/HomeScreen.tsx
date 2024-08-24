@@ -80,7 +80,7 @@ const HomeScreen = () => {
         <Text style={styles.location}>우제2동</Text>
         <View style={styles.headerIcons}>
           <Icon name="search-outline" size={24} />
-          <Icon name="notifications-outline" size={24} style={styles.icon} />
+          {/* <Icon name="notifications-outline" size={24} style={styles.icon} /> */}
         </View>
       </View>
       <FlatList

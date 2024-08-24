@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
-import { firestore, auth, storage, createChatRoom } from '../../firebaseConfig';
+import { firestore, auth } from '../../firebaseConfig';
 import firebase from 'firebase/compat/app';
 
 type ChatListScreenNavigationProp = StackNavigationProp<RootStackParamList, 'ChatList'>;
@@ -22,12 +22,21 @@ type Chat = {
   otherUserName: string;
   otherUserProfileImage: string;
   updatedAt: firebase.firestore.Timestamp;
+  unreadCount: number;
 };
 
-const ChatListScreen = () => {
+type ChatListScreenProps = {
+  setTotalUnreadCount: (count: number) => void;
+};
+
+const ChatListScreen: React.FC<ChatListScreenProps> = ({ setTotalUnreadCount }) => {
   const navigation = useNavigation<ChatListScreenNavigationProp>();
   const [chats, setChats] = useState<Chat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const calculateUnreadCount = useCallback((messages: Message[], lastRead: firebase.firestore.Timestamp, currentUserId: string) => {
+    return messages.filter(msg => msg.timestamp > lastRead && msg.senderId !== currentUserId).length;
+  }, []);
 
   useEffect(() => {
     const user = auth.currentUser;
@@ -37,49 +46,39 @@ const ChatListScreen = () => {
       return;
     }
 
-    console.log('Current user ID:', user.uid);
-
     const unsubscribe = firestore.collection('chats')
       .where('participants', 'array-contains', user.uid)
       .onSnapshot(async (snapshot) => {
-        console.log('Number of chats:', snapshot.docs.length);
         const fetchedChats: Chat[] = [];
+        let totalUnread = 0;
+
         for (const doc of snapshot.docs) {
           const chatData = doc.data();
-          console.log('Chat data:', chatData);
           const otherUserId = chatData.participants.find((id: string) => id !== user.uid);
           
           if (otherUserId) {
             const otherUserDoc = await firestore.collection('users').doc(otherUserId).get();
             const otherUserData = otherUserDoc.data();
-            const otherUserName = otherUserData?.name || 'Unknown User';
-            const otherUserProfileImage = otherUserData?.profileImage || '';
-
             const messages: Message[] = chatData.messages || [];
-            let lastMessage: Message | null = null;
+            const lastRead = chatData.lastRead?.[user.uid] || new firebase.firestore.Timestamp(0, 0);
+            const unreadCount = calculateUnreadCount(messages, lastRead, user.uid);
 
-            if (messages.length > 0) {
-              const lastMessageData = messages[messages.length - 1];
-              lastMessage = {
-                id: lastMessageData.id,
-                content: lastMessageData.content,
-                senderId: lastMessageData.senderId,
-                timestamp: getTimestamp(lastMessageData.timestamp),
-              };
-            }
+            totalUnread += unreadCount;
 
             fetchedChats.push({
               id: doc.id,
               participants: chatData.participants,
-              lastMessage,
-              otherUserName,
-              otherUserProfileImage,
-              updatedAt: getTimestamp(chatData.updatedAt),
+              lastMessage: messages.length > 0 ? messages[messages.length - 1] : null,
+              otherUserName: otherUserData?.name || 'Unknown User',
+              otherUserProfileImage: otherUserData?.profileImage || '',
+              updatedAt: chatData.updatedAt,
+              unreadCount,
             });
           }
         }
-        console.log('Fetched chats:', fetchedChats);
+
         setChats(fetchedChats.sort((a, b) => b.updatedAt.toMillis() - a.updatedAt.toMillis()));
+        setTotalUnreadCount(totalUnread);
         setIsLoading(false);
       }, (error) => {
         console.error("Error fetching chats: ", error);
@@ -87,47 +86,25 @@ const ChatListScreen = () => {
       });
 
     return () => unsubscribe();
-  }, [navigation]);
+  }, [navigation, calculateUnreadCount, setTotalUnreadCount]);
 
-  const getTimestamp = (timestamp: any): firebase.firestore.Timestamp => {
+  const formatTimestamp = (timestamp: firebase.firestore.Timestamp | Date | { seconds: number; nanoseconds: number } | string | null): string => {
     if (timestamp instanceof firebase.firestore.Timestamp) {
-      return timestamp;
-    } else if (typeof timestamp === 'object' && timestamp !== null) {
-      const seconds = timestamp.seconds || 0;
-      const nanoseconds = timestamp.nanoseconds || 0;
-      return new firebase.firestore.Timestamp(seconds, nanoseconds);
-    } else {
-      console.warn('Invalid timestamp format:', timestamp);
-      return firebase.firestore.Timestamp.now();
+      return timestamp.toDate().toLocaleString();
+    } else if (timestamp instanceof Date) {
+      return timestamp.toLocaleString();
+    } else if (typeof timestamp === 'object' && timestamp !== null && 'seconds' in timestamp && 'nanoseconds' in timestamp) {
+      return new Date(timestamp.seconds * 1000).toLocaleString();
+    } else if (typeof timestamp === 'string') {
+      return new Date(timestamp).toLocaleString();
     }
-  };
-
-  const formatTimestamp = (timestamp: firebase.firestore.Timestamp): string => {
-    return timestamp.toDate().toLocaleString();
-  };
-
-  const startChat = async (otherUserId: string) => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      console.error('User not authenticated');
-      return;
-    }
-
-    try {
-      const chatId = await createChatRoom(currentUser.uid, otherUserId);
-      navigation.navigate('Chat', { chatId, otherUserId });
-    } catch (error) {
-      console.error('Error creating chat room:', error);
-    }
+    return 'Invalid date';
   };
 
   const renderItem = ({ item }: { item: Chat }) => {
     const otherUserId = item.participants.find(id => id !== auth.currentUser?.uid);
     
-    // 'otherUserId'가 undefined일 경우 처리
-    if (!otherUserId) {
-      return null;
-    }
+    if (!otherUserId) return null;
 
     return (
       <TouchableOpacity onPress={() => navigation.navigate('Chat', { chatId: item.id, otherUserId })}>
@@ -139,11 +116,18 @@ const ChatListScreen = () => {
               {item.lastMessage ? item.lastMessage.content : 'No messages'}
             </Text>
           </View>
-          <Text style={styles.timestamp}>
-            {item.lastMessage 
-              ? formatTimestamp(item.lastMessage.timestamp) 
-              : formatTimestamp(item.updatedAt)}
-          </Text>
+          <View style={styles.rightContainer}>
+            <Text style={styles.timestamp}>
+              {item.lastMessage 
+                ? formatTimestamp(item.lastMessage.timestamp)
+                : formatTimestamp(item.updatedAt)}
+            </Text>
+            {item.unreadCount > 0 && (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadCount}>{item.unreadCount}</Text>
+              </View>
+            )}
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -172,7 +156,7 @@ const ChatListScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 10,
+    backgroundColor: '#f0f0f0',
   },
   loadingContainer: {
     flex: 1,
@@ -185,6 +169,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#ccc',
     alignItems: 'center',
+    backgroundColor: '#ffffff',
   },
   profileImage: {
     width: 50,
@@ -204,13 +189,30 @@ const styles = StyleSheet.create({
     color: '#555',
     marginTop: 5,
   },
+  rightContainer: {
+    alignItems: 'flex-end',
+  },
   timestamp: {
     fontSize: 12,
     color: '#888',
   },
+  unreadBadge: {
+    backgroundColor: 'red',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 5,
+  },
+  unreadCount: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
   emptyText: {
     textAlign: 'center',
-    marginTop: 20,
+    marginTop: 50,
     fontSize: 16,
     color: '#888',
   },
