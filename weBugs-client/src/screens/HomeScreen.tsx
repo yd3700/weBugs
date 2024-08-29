@@ -1,11 +1,10 @@
-// src/screens/HomeScreen.tsx
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList, ServiceRequest } from '../types/navigation'; // 경로는 실제 위치에 맞게 조정하세요
+import { RootStackParamList, ServiceRequest } from '../types/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { auth, firestore } from '../../firebaseConfig'; // Firebase imports
+import { auth, firestore } from '../../firebaseConfig';
 
 const HomeScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -18,7 +17,7 @@ const HomeScreen = () => {
     const unsubscribe = auth.onAuthStateChanged(user => {
       if (user) {
         setIsAuthenticated(true);
-        fetchPosts(); // Fetch posts when user is authenticated
+        fetchPosts();
       } else {
         setIsAuthenticated(false);
         navigation.navigate('Login');
@@ -34,8 +33,8 @@ const HomeScreen = () => {
       const fetchedPosts: ServiceRequest[] = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        createdAt: doc.data().createdAt.toDate(), // Firestore Timestamp를 Date로 변환
-        updatedAt: doc.data().updatedAt.toDate(), // Firestore Timestamp를 Date로 변환
+        createdAt: doc.data().createdAt.toDate(),
+        updatedAt: doc.data().updatedAt.toDate(),
       })) as ServiceRequest[];
       setPosts(fetchedPosts);
     } catch (error) {
@@ -45,18 +44,22 @@ const HomeScreen = () => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchPosts(); // Refresh the posts
+    await fetchPosts();
     setRefreshing(false);
   };
 
   const renderItem = ({ item }: { item: ServiceRequest }) => (
     <TouchableOpacity onPress={() => navigation.navigate('RequestDetails', { request: item })}>
       <View style={styles.postContainer}>
-        {/* 기본 이미지가 없으므로, image 필드는 제거 */}
+        {item.imageUrl && (
+          <Image source={{ uri: item.imageUrl }} style={styles.postImage} />
+        )}
         <View style={styles.postDetails}>
           <Text style={styles.postTitle}>{item.title}</Text>
           <Text style={styles.postLocation}>{item.location}</Text>
-          <Text style={styles.postPrice}>{item.transactionType === 'money' ? `${item.amount?.toLocaleString()}원` : '봉사'}</Text>
+          <Text style={styles.postPrice}>
+            {item.transactionType === 'money' ? `${item.amount?.toLocaleString()}원` : '봉사'}
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -80,7 +83,6 @@ const HomeScreen = () => {
         <Text style={styles.location}>우제2동</Text>
         <View style={styles.headerIcons}>
           <Icon name="search-outline" size={24} />
-          {/* <Icon name="notifications-outline" size={24} style={styles.icon} /> */}
         </View>
       </View>
       <FlatList
@@ -88,8 +90,8 @@ const HomeScreen = () => {
         renderItem={renderItem}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.postList}
-        refreshing={refreshing} // 새로고침 상태
-        onRefresh={handleRefresh} // 새로고침 로직 연결
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
       />
     </View>
   );
@@ -112,17 +114,20 @@ const styles = StyleSheet.create({
   headerIcons: {
     flexDirection: 'row',
   },
-  icon: {
-    marginLeft: 15,
-  },
   postList: {
-    paddingBottom: 60, // Adjust to prevent content from being hidden behind footer
+    paddingBottom: 60,
   },
   postContainer: {
     flexDirection: 'row',
     padding: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#ccc',
+  },
+  postImage: {
+    width: 80,
+    height: 80,
+    marginRight: 15,
+    borderRadius: 5,
   },
   postDetails: {
     flex: 1,

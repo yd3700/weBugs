@@ -1,4 +1,4 @@
-import { ImagePickerResponse } from 'react-native-image-picker';
+import * as ImagePicker from 'expo-image-picker';
 import { firebase } from '../../firebaseConfig';
 
 export type RootStackParamList = {
@@ -25,6 +25,7 @@ export type ServiceRequest = {
   userId: string;
   createdAt: Date;
   updatedAt: Date;
+  imageUrl?: string;
 };
 
 export type Message = {
@@ -32,8 +33,8 @@ export type Message = {
   content: string;
   senderId: string;
   recipientId: string;
-  timestamp: firebase.firestore.Timestamp;  // 수정: 문자열에서 Firestore Timestamp로 변경
-  read: boolean;  // 'read' 속성 추가
+  timestamp: firebase.firestore.Timestamp;
+  read: boolean;
 };
 
 export type User = {
@@ -41,7 +42,7 @@ export type User = {
   name: string;
   email: string;
   phone: string;
-  profileImage?: string;
+  ProfilePicture?: string;
 };
 
 export type Chat = {
@@ -51,13 +52,5 @@ export type Chat = {
   updatedAt: Date;
 };
 
-export type ImagePickerResult = ImagePickerResponse;
-
-export type ImagePickerAsset = {
-  uri: string;
-  width: number;
-  height: number;
-  type?: string;
-  fileName?: string;
-  fileSize?: number;
-};
+export type ImagePickerResult = ImagePicker.ImagePickerResult;
+export type ImagePickerAsset = ImagePicker.ImagePickerAsset;

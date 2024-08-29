@@ -15,6 +15,7 @@ const ChatScreen = () => {
   const [newMessage, setNewMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [otherUser, setOtherUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const lastReadTimestampRef = useRef<firebase.firestore.Timestamp | null>(null);
@@ -27,27 +28,31 @@ const ChatScreen = () => {
       return;
     }
 
-    const fetchOtherUserData = async () => {
+    const fetchUserData = async () => {
       try {
-        const userDoc = await firestore.collection('users').doc(otherUserId).get();
-        if (userDoc.exists) {
-          setOtherUser(userDoc.data() as User);
+        const otherUserDoc = await firestore.collection('users').doc(otherUserId).get();
+        if (otherUserDoc.exists) {
+          setOtherUser(otherUserDoc.data() as User);
         } else {
           setError('상대방 정보를 찾을 수 없습니다.');
         }
+
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          const currentUserDoc = await firestore.collection('users').doc(currentUser.uid).get();
+          if (currentUserDoc.exists) {
+            setCurrentUser(currentUserDoc.data() as User);
+          }
+        } else {
+          setError('사용자 인증이 필요합니다.');
+        }
       } catch (error) {
-        console.error("Error fetching other user data:", error);
-        setError('상대방 정보를 가져오는 중 오류가 발생했습니다.');
+        console.error("Error fetching user data:", error);
+        setError('사용자 정보를 가져오는 중 오류가 발생했습니다.');
       }
     };
 
-    fetchOtherUserData();
-
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      setError('사용자 인증이 필요합니다.');
-      return;
-    }
+    fetchUserData();
 
     const lastReadTimestamp = firebase.firestore.Timestamp.now();
     lastReadTimestampRef.current = lastReadTimestamp;
@@ -57,20 +62,21 @@ const ChatScreen = () => {
         if (snapshot.exists) {
           const data = snapshot.data();
           if (data && data.messages) {
-            console.log('Messages data:', data.messages); // 로그 추가
+            console.log('Messages data:', data.messages);
             setMessages(data.messages);
             
-            // 읽음 상태 업데이트
-            const updatedMessages = data.messages.map((msg: Message) => ({
-              ...msg,
-              read: msg.timestamp <= lastReadTimestamp || msg.senderId === currentUser.uid
-            }));
-            
-            // Firestore 업데이트
-            await firestore.collection('chats').doc(chatId).update({
-              messages: updatedMessages,
-              [`lastRead.${currentUser.uid}`]: lastReadTimestamp
-            });
+            const currentUser = auth.currentUser;
+            if (currentUser) {
+              const updatedMessages = data.messages.map((msg: Message) => ({
+                ...msg,
+                read: msg.timestamp <= lastReadTimestamp || msg.senderId === currentUser.uid
+              }));
+              
+              await firestore.collection('chats').doc(chatId).update({
+                messages: updatedMessages,
+                [`lastRead.${currentUser.uid}`]: lastReadTimestamp
+              });
+            }
           }
         } else {
           setError('채팅을 불러올 수 없습니다.');
@@ -120,11 +126,18 @@ const ChatScreen = () => {
   const renderMessage = ({ item }: { item: Message }) => {
     const isCurrentUser = item.senderId === auth.currentUser?.uid;
     const displayTimestamp = formatTimestamp(item.timestamp);
+    const userImage = isCurrentUser ? currentUser?.ProfilePicture : otherUser?.ProfilePicture;
 
     return (
       <View style={[styles.messageContainer, isCurrentUser ? styles.currentUser : styles.otherUser]}>
-        {!isCurrentUser && otherUser && (
-          <Image source={{ uri: otherUser.profileImage }} style={styles.avatar} />
+        {!isCurrentUser && (
+          userImage ? (
+            <Image source={{ uri: userImage }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.defaultAvatar]}>
+              <Text style={styles.defaultAvatarText}>{otherUser?.name?.charAt(0).toUpperCase()}</Text>
+            </View>
+          )
         )}
         <View style={styles.messageContent}>
           <View style={[styles.messageBubble, isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble]}>
@@ -134,6 +147,15 @@ const ChatScreen = () => {
             {displayTimestamp}
           </Text>
         </View>
+        {isCurrentUser && (
+          userImage ? (
+            <Image source={{ uri: userImage }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.defaultAvatar]}>
+              <Text style={styles.defaultAvatarText}>{currentUser?.name?.charAt(0).toUpperCase()}</Text>
+            </View>
+          )
+        )}
       </View>
     );
   };
@@ -199,7 +221,16 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    marginRight: 10,
+    marginHorizontal: 10,
+  },
+  defaultAvatar: {
+    backgroundColor: '#ccc',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  defaultAvatarText: {
+    fontSize: 18,
+    color: '#fff',
   },
   messageContent: {
     maxWidth: '70%',

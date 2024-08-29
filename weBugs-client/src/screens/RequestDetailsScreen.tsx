@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { RouteProp, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, ServiceRequest } from '../types/navigation';
@@ -103,6 +103,9 @@ const RequestDetailsScreen = ({ route }: Props) => {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.card}>
+        {request.imageUrl && (
+          <Image source={{ uri: request.imageUrl }} style={styles.image} />
+        )}
         <Text style={styles.title}>{request.title}</Text>
         <Text style={styles.status}>상태: {request.status}</Text>
         
@@ -163,6 +166,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  image: {
+    width: '100%',
+    height: 200,
+    resizeMode: 'cover',
+    borderRadius: 10,
+    marginBottom: 15,
   },
   title: {
     fontSize: 24,

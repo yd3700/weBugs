@@ -22,6 +22,47 @@ const auth = firebase.auth();
 const firestore = firebase.firestore();
 const storage = firebase.storage();
 
+// 이미지 업로드 함수
+const uploadImage = async (uri: string): Promise<string> => {
+  const response = await fetch(uri);
+  const blob = await response.blob();
+  const filename = uri.substring(uri.lastIndexOf('/') + 1);
+  const ref = storage.ref().child(`images/${filename}`);
+
+  try {
+    // 먼저 사용자가 인증되어 있는지 확인
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    // 업로드 전에 토큰 가져오기
+    const token = await currentUser.getIdToken();
+
+    // XMLHttpRequest 사용
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.onload = async () => {
+        if (xhr.status === 200) {
+          const downloadURL = await ref.getDownloadURL();
+          resolve(downloadURL);
+        } else {
+          reject(new Error('Upload failed'));
+        }
+      };
+      xhr.onerror = reject;
+
+      xhr.open('POST', `https://firebasestorage.googleapis.com/v0/b/${firebaseConfig.storageBucket}/o?name=${encodeURIComponent(`images/${filename}`)}`);
+      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+      xhr.setRequestHeader('Authorization', `Firebase ${token}`);
+      xhr.send(blob);
+    });
+  } catch (error) {
+    console.error("Error uploading image:", error);
+    throw error;
+  }
+};
+
 // 채팅방 생성 로직
 const createChatRoom = async (currentUserId: string, otherUserId: string) => {
   const chatId = [currentUserId, otherUserId].sort().join('-');
@@ -167,6 +208,7 @@ export {
   auth, 
   firestore, 
   storage,
+  uploadImage,
   createChatRoom,
   createChatMessage, 
   getChatList,
