@@ -42,7 +42,7 @@ export type User = {
   name: string;
   email: string;
   phone: string;
-  ProfilePicture?: string;
+  profilePicture?: string;
 };
 
 export type Chat = {

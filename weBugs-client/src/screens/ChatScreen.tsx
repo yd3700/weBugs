@@ -126,7 +126,7 @@ const ChatScreen = () => {
   const renderMessage = ({ item }: { item: Message }) => {
     const isCurrentUser = item.senderId === auth.currentUser?.uid;
     const displayTimestamp = formatTimestamp(item.timestamp);
-    const userImage = isCurrentUser ? currentUser?.ProfilePicture : otherUser?.ProfilePicture;
+    const userImage = isCurrentUser ? currentUser?.profilePicture : otherUser?.profilePicture;
 
     return (
       <View style={[styles.messageContainer, isCurrentUser ? styles.currentUser : styles.otherUser]}>
@@ -134,8 +134,8 @@ const ChatScreen = () => {
           userImage ? (
             <Image source={{ uri: userImage }} style={styles.avatar} />
           ) : (
-            <View style={[styles.avatar, styles.defaultAvatar]}>
-              <Text style={styles.defaultAvatarText}>{otherUser?.name?.charAt(0).toUpperCase()}</Text>
+            <View style={[styles.avatar, styles.placeholderImage]}>
+              <Text>{otherUser?.name?.charAt(0).toUpperCase()}</Text>
             </View>
           )
         )}
@@ -151,8 +151,8 @@ const ChatScreen = () => {
           userImage ? (
             <Image source={{ uri: userImage }} style={styles.avatar} />
           ) : (
-            <View style={[styles.avatar, styles.defaultAvatar]}>
-              <Text style={styles.defaultAvatarText}>{currentUser?.name?.charAt(0).toUpperCase()}</Text>
+            <View style={[styles.avatar, styles.placeholderImage]}>
+              <Text>{currentUser?.name?.charAt(0).toUpperCase()}</Text>
             </View>
           )
         )}
@@ -223,14 +223,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginHorizontal: 10,
   },
-  defaultAvatar: {
-    backgroundColor: '#ccc',
+  placeholderImage: {
+    backgroundColor: '#e1e1e1',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  defaultAvatarText: {
-    fontSize: 18,
-    color: '#fff',
   },
   messageContent: {
     maxWidth: '70%',
