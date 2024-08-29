@@ -20,7 +20,7 @@ type Chat = {
   participants: string[];
   lastMessage: Message | null;
   otherUserName: string;
-  otherUserProfileImage: string;
+  otherUserProfilePicture: string;
   updatedAt: firebase.firestore.Timestamp;
   unreadCount: number;
 };
@@ -70,7 +70,7 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ setTotalUnreadCount }) 
               participants: chatData.participants,
               lastMessage: messages.length > 0 ? messages[messages.length - 1] : null,
               otherUserName: otherUserData?.name || 'Unknown User',
-              otherUserProfileImage: otherUserData?.profileImage || '',
+              otherUserProfilePicture: otherUserData?.profilePicture || '',
               updatedAt: chatData.updatedAt,
               unreadCount,
             });
@@ -106,10 +106,22 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ setTotalUnreadCount }) 
     
     if (!otherUserId) return null;
 
+    const renderAvatar = () => {
+      if (item.otherUserProfilePicture) {
+        return <Image source={{ uri: item.otherUserProfilePicture }} style={styles.profileImage} />;
+      } else {
+        return (
+          <View style={[styles.profileImage, styles.defaultAvatar]}>
+            <Text style={styles.defaultAvatarText}>{item.otherUserName.charAt(0).toUpperCase()}</Text>
+          </View>
+        );
+      }
+    };
+
     return (
       <TouchableOpacity onPress={() => navigation.navigate('Chat', { chatId: item.id, otherUserId })}>
         <View style={styles.chatItem}>
-          <Image source={{ uri: item.otherUserProfileImage }} style={styles.profileImage} />
+          {renderAvatar()}
           <View style={styles.chatInfo}>
             <Text style={styles.userName}>{item.otherUserName}</Text>
             <Text style={styles.lastMessage} numberOfLines={1}>
@@ -176,6 +188,15 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 25,
     marginRight: 15,
+  },
+  defaultAvatar: {
+    backgroundColor: '#e1e1e1',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  defaultAvatarText: {
+    fontSize: 22,
+    color: '#fff',
   },
   chatInfo: {
     flex: 1,
