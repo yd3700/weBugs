@@ -9,11 +9,18 @@ import firebase from 'firebase/compat/app';
 type ChatScreenRouteProp = RouteProp<RootStackParamList, 'Chat'>;
 type ChatScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
+type DateSeparator = {
+  type: 'date';
+  date: string;
+};
+
+type ChatItem = Message | DateSeparator;
+
 const ChatScreen = () => {
   const route = useRoute<ChatScreenRouteProp>();
   const navigation = useNavigation<ChatScreenNavigationProp>();
   const [newMessage, setNewMessage] = useState('');
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatItem[]>([]);
   const [otherUser, setOtherUser] = useState<User | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +70,8 @@ const ChatScreen = () => {
           const data = snapshot.data();
           if (data && data.messages) {
             console.log('Messages data:', data.messages);
-            setMessages(data.messages);
+            const messagesWithDates = addDateSeparators(data.messages);
+            setMessages(messagesWithDates);
             
             const currentUser = auth.currentUser;
             if (currentUser) {
@@ -89,6 +97,26 @@ const ChatScreen = () => {
     return () => unsubscribe();
   }, [chatId, otherUserId]);
 
+  const addDateSeparators = (messages: Message[]): ChatItem[] => {
+    const messagesWithDates: ChatItem[] = [];
+    let currentDate = '';
+
+    messages.forEach((message) => {
+      const messageDate = formatDate(message.timestamp);
+      if (messageDate !== currentDate) {
+        messagesWithDates.push({ type: 'date', date: messageDate });
+        currentDate = messageDate;
+      }
+      messagesWithDates.push(message);
+    });
+
+    return messagesWithDates;
+  };
+
+  const formatDate = (timestamp: firebase.firestore.Timestamp): string => {
+    return timestamp.toDate().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+  };
+
   const handleSendMessage = async () => {
     if (newMessage.trim() === '') {
       return;
@@ -110,20 +138,27 @@ const ChatScreen = () => {
     }
   };
 
-  const formatTimestamp = (timestamp: firebase.firestore.Timestamp | Date | { seconds: number; nanoseconds: number } | string | null): string => {
-    if (timestamp instanceof firebase.firestore.Timestamp) {
-      return timestamp.toDate().toLocaleString();
-    } else if (timestamp instanceof Date) {
-      return timestamp.toLocaleString();
-    } else if (typeof timestamp === 'object' && timestamp !== null && 'seconds' in timestamp && 'nanoseconds' in timestamp) {
-      return new Date(timestamp.seconds * 1000).toLocaleString();
-    } else if (typeof timestamp === 'string') {
-      return new Date(timestamp).toLocaleString();
-    }
-    return 'Invalid date';
+  const formatTimestamp = (timestamp: firebase.firestore.Timestamp): string => {
+    return timestamp.toDate().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const renderMessage = ({ item }: { item: Message }) => {
+  const isMessage = (item: ChatItem): item is Message => {
+    return 'senderId' in item && 'timestamp' in item;
+  };
+
+  const renderItem = ({ item }: { item: ChatItem }) => {
+    if ('type' in item && item.type === 'date') {
+      return (
+        <View style={styles.dateSeparator}>
+          <Text style={styles.dateSeparatorText}>{item.date}</Text>
+        </View>
+      );
+    }
+
+    if (!isMessage(item)) {
+      return null; // 또는 적절한 에러 처리
+    }
+
     const isCurrentUser = item.senderId === auth.currentUser?.uid;
     const displayTimestamp = formatTimestamp(item.timestamp);
     const userImage = isCurrentUser ? currentUser?.profilePicture : otherUser?.profilePicture;
@@ -173,8 +208,8 @@ const ChatScreen = () => {
       <FlatList
         ref={flatListRef}
         data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.messageId}
+        renderItem={renderItem}
+        keyExtractor={(item, index) => 'type' in item ? `date-${index}` : item.messageId}
         contentContainerStyle={styles.messageList}
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
       />
@@ -289,6 +324,18 @@ const styles = StyleSheet.create({
     color: 'red',
     textAlign: 'center',
     marginTop: 10,
+  },
+  dateSeparator: {
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  dateSeparatorText: {
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    color: '#000',
+    fontSize: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
   },
 });
 

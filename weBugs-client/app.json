@@ -15,14 +15,17 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "이 앱은 사진 촬영을 위해 카메라 접근 권한이 필요합니다.",
-        "NSPhotoLibraryUsageDescription": "이 앱은 사진 선택을 위해 갤러리 접근 권한이 필요합니다."
+        "NSPhotoLibraryUsageDescription": "이 앱은 사진 선택을 위해 갤러리 접근 권한이 필요합니다.",
+        "NSLocationWhenInUseUsageDescription": "이 앱은 사용자의 현재 위치를 가져오기 위해 위치 정보 접근 권한이 필요합니다."
       }
     },
     "android": {
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",

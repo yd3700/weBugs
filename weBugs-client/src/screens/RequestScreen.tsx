@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, ScrollView, TouchableOpacity, Image, Platform } from 'react-native';
+import { View, Text, TextInput, Button, StyleSheet, ScrollView, TouchableOpacity, Image, Platform, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
 import { firestore, auth, storage } from '../../firebaseConfig';
+import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 
 type RequestScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Request'>;
@@ -15,20 +16,46 @@ const RequestScreen = () => {
   const [transactionType, setTransactionType] = useState<'money' | 'volunteer'>('money');
   const [amount, setAmount] = useState('');
   const [location, setLocation] = useState('');
-  const [image, setImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [image, setImage] = useState<string | null>(null);
 
   useEffect(() => {
+    getLocation();
     (async () => {
       if (Platform.OS !== 'web') {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-          alert('갤러리 접근 권한이 필요합니다.');
+          Alert.alert('갤러리 접근 권한이 필요합니다.');
         }
       }
     })();
   }, []);
+
+  const getLocation = async () => {
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      setError('위치 정보 접근 권한이 거부되었습니다.');
+      return;
+    }
+
+    try {
+      let location = await Location.getCurrentPositionAsync({});
+      const address = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude
+      });
+
+      if (address.length > 0) {
+        const { region, city, district } = address[0];
+        const fullAddress = `${region} ${city} ${district}`.trim();
+        setLocation(fullAddress);
+      }
+    } catch (error) {
+      console.error('Error getting location:', error);
+      setError('위치 정보를 가져오는데 실패했습니다.');
+    }
+  };
 
   const handleImagePick = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -37,7 +64,6 @@ const RequestScreen = () => {
       aspect: [4, 3],
       quality: 1,
     });
-
     if (!result.canceled) {
       setImage(result.assets[0].uri);
     }
@@ -49,14 +75,12 @@ const RequestScreen = () => {
       alert('카메라 접근 권한이 필요합니다.');
       return;
     }
-
     let result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [4, 3],
       quality: 1,
     });
-
     if (!result.canceled) {
       setImage(result.assets[0].uri);
     }
@@ -70,7 +94,6 @@ const RequestScreen = () => {
     await ref.put(blob);
     return ref.getDownloadURL();
   };
-
   const handleRequest = async () => {
     const user = auth.currentUser;
     if (!user) {
@@ -93,7 +116,6 @@ const RequestScreen = () => {
       if (image) {
         imageUrl = await uploadImage(image);
       }
-
       await firestore.collection('serviceRequests').add({
         userId: user.uid,
         title,
@@ -101,10 +123,11 @@ const RequestScreen = () => {
         transactionType,
         amount: transactionType === 'money' ? parseFloat(amount) : 0,
         location,
+        image,
         status: 'pending',
         createdAt: new Date(),
         updatedAt: new Date(),
-        imageUrl,
+		imageUrl,
       });
       setSuccess('요청이 성공적으로 생성되었습니다.');
       setTitle('');
@@ -115,7 +138,6 @@ const RequestScreen = () => {
       setImage(null);
     } catch (error) {
       setError('요청 생성 중 오류가 발생했습니다.');
-      console.error(error);
     }
   };
 
@@ -158,12 +180,17 @@ const RequestScreen = () => {
           keyboardType="numeric"
         />
       )}
-      <TextInput
-        style={styles.input}
-        placeholder="출몰 위치"
-        value={location}
-        onChangeText={setLocation}
-      />
+      <View style={styles.locationContainer}>
+        <TextInput
+          style={[styles.input, styles.locationInput]}
+          placeholder="출몰 위치"
+          value={location}
+          onChangeText={setLocation}
+        />
+        <TouchableOpacity style={styles.refreshButton} onPress={getLocation}>
+          <Text style={styles.refreshButtonText}>현재 위치</Text>
+        </TouchableOpacity>
+      </View>
       <View style={styles.imageContainer}>
         {image && <Image source={{ uri: image }} style={styles.image} />}
         <View style={styles.imageButtonContainer}>
@@ -224,13 +251,24 @@ const styles = StyleSheet.create({
   activeButtonText: {
     color: 'white',
   },
-  error: {
-    color: 'red',
+  locationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 20,
   },
-  success: {
-    color: 'green',
-    marginBottom: 20,
+  locationInput: {
+    flex: 1,
+    marginBottom: 0,
+    marginRight: 10,
+  },
+  refreshButton: {
+    backgroundColor: '#007AFF',
+    padding: 10,
+    borderRadius: 5,
+  },
+  refreshButtonText: {
+    color: 'white',
   },
   imageContainer: {
     marginBottom: 20,
@@ -238,7 +276,6 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: 200,
-    resizeMode: 'cover',
     marginBottom: 10,
   },
   imageButtonContainer: {
@@ -255,6 +292,14 @@ const styles = StyleSheet.create({
   imageButtonText: {
     color: 'white',
     textAlign: 'center',
+  },
+  error: {
+    color: 'red',
+    marginBottom: 20,
+  },
+  success: {
+    color: 'green',
+    marginBottom: 20,
   },
 });
 
