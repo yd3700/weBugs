@@ -156,23 +156,27 @@ const ChatScreen = () => {
     }
 
     if (!isMessage(item)) {
-      return null; // 또는 적절한 에러 처리
+      return null;
     }
 
     const isCurrentUser = item.senderId === auth.currentUser?.uid;
     const displayTimestamp = formatTimestamp(item.timestamp);
     const userImage = isCurrentUser ? currentUser?.profilePicture : otherUser?.profilePicture;
+    const userName = isCurrentUser ? currentUser?.name : otherUser?.name;
 
     return (
       <View style={[styles.messageContainer, isCurrentUser ? styles.currentUser : styles.otherUser]}>
         {!isCurrentUser && (
-          userImage ? (
-            <Image source={{ uri: userImage }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, styles.placeholderImage]}>
-              <Text>{otherUser?.name?.charAt(0).toUpperCase()}</Text>
-            </View>
-          )
+          <View style={styles.userInfo}>
+            {userImage ? (
+              <Image source={{ uri: userImage }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, styles.placeholderImage]}>
+                <Text>{userName?.charAt(0).toUpperCase()}</Text>
+              </View>
+            )}
+            <Text style={styles.userName}>{userName}</Text>
+          </View>
         )}
         <View style={styles.messageContent}>
           <View style={[styles.messageBubble, isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble]}>
@@ -183,13 +187,16 @@ const ChatScreen = () => {
           </Text>
         </View>
         {isCurrentUser && (
-          userImage ? (
-            <Image source={{ uri: userImage }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, styles.placeholderImage]}>
-              <Text>{currentUser?.name?.charAt(0).toUpperCase()}</Text>
-            </View>
-          )
+          <View style={styles.userInfo}>
+            {userImage ? (
+              <Image source={{ uri: userImage }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, styles.placeholderImage]}>
+                <Text>{userName?.charAt(0).toUpperCase()}</Text>
+              </View>
+            )}
+            <Text style={styles.userName}>{userName}</Text>
+          </View>
         )}
       </View>
     );
@@ -252,6 +259,10 @@ const styles = StyleSheet.create({
   otherUser: {
     justifyContent: 'flex-start',
   },
+  userInfo: {
+    alignItems: 'center',
+    marginHorizontal: 5,
+  },
   avatar: {
     width: 40,
     height: 40,
@@ -262,6 +273,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#e1e1e1',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  userName: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 2,
   },
   messageContent: {
     maxWidth: '70%',

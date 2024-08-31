@@ -12,6 +12,9 @@ export type RootStackParamList = {
   Chat: { chatId: string; otherUserId: string };
   ChatList: undefined;
   Profile: undefined;
+  ProfileView: undefined;
+  RequestHistory: undefined;
+  CollectionHistory: undefined;
 };
 
 export type ServiceRequest = {

@@ -13,6 +13,9 @@ import RequestScreen from '../screens/RequestScreen';
 import RequestDetailsScreen from '../screens/RequestDetailsScreen';
 import ChatScreen from '../screens/ChatScreen';
 import ChatListScreen from '../screens/ChatListScreen';
+import ProfileViewScreen from '../screens/ProfileViewScreen';
+import RequestHistoryScreen from '../screens/RequestHistoryScreen';
+import CollectionHistoryScreen from '../screens/CollectionHistoryScreen';
 
 import { RootStackParamList } from '../types/navigation';
 
@@ -101,6 +104,9 @@ const AppNavigator = () => {
           <Stack.Screen name="HomeTabs" component={HomeTabs} options={{ headerShown: false }} />
           <Stack.Screen name="RequestDetails" component={RequestDetailsScreen} />
           <Stack.Screen name="Chat" component={ChatScreen} />
+          <Stack.Screen name="ProfileView" component={ProfileViewScreen} />
+          <Stack.Screen name="RequestHistory" component={RequestHistoryScreen} />
+          <Stack.Screen name="CollectionHistory" component={CollectionHistoryScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </UnreadContext.Provider>

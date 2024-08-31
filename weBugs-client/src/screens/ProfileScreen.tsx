@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, ActivityIndicator, Image, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, TextInput, Button, StyleSheet, ActivityIndicator, Image, TouchableOpacity, Platform, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
@@ -114,39 +114,37 @@ const ProfileScreen = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       <Text style={styles.title}>프로필</Text>
-      <TouchableOpacity onPress={handleImagePick} style={styles.imageContainer}>
-        {profilePicture ? (
-          <Image source={{ uri: profilePicture }} style={styles.profileImage} />
-        ) : (
-          <View style={styles.placeholderImage}>
-            <Text>프로필 이미지 추가</Text>
-          </View>
-        )}
+      <View style={styles.profileContainer}>
+        <TouchableOpacity onPress={handleImagePick} style={styles.imageContainer}>
+          {profilePicture ? (
+            <Image source={{ uri: profilePicture }} style={styles.profileImage} />
+          ) : (
+            <View style={styles.placeholderImage}>
+              <Text>프로필 이미지 추가</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        <Text style={styles.nickname}>{name}</Text>
+      </View>
+      
+      <TouchableOpacity style={styles.sectionButton} onPress={() => navigation.navigate('ProfileView')}>
+        <Text style={styles.sectionButtonText}>프로필 보기</Text>
       </TouchableOpacity>
-      <TextInput
-        style={styles.input}
-        placeholder="이름"
-        value={name}
-        onChangeText={setName}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="이메일"
-        value={email}
-        editable={false}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="전화번호"
-        value={phone}
-        onChangeText={setPhone}
-      />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Button title="프로필 업데이트" onPress={handleUpdateProfile} />
+
+      <TouchableOpacity style={styles.sectionButton} onPress={() => navigation.navigate('RequestHistory')}>
+        <Text style={styles.sectionButtonText}>요청 내역</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.sectionButton} onPress={() => navigation.navigate('CollectionHistory')}>
+        <Text style={styles.sectionButtonText}>채집내역</Text>
+      </TouchableOpacity>
+
       <Button title="로그아웃" onPress={() => auth.signOut().then(() => navigation.navigate('Login'))} />
-    </View>
+
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+    </ScrollView>
   );
 };
 
@@ -160,6 +158,31 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 20,
     textAlign: 'center',
+  },
+  profileContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  imageContainer: {
+    marginBottom: 10,
+  },
+  profileImage: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+  },
+  placeholderImage: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: '#e1e1e1',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  nickname: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 10,
   },
   input: {
     height: 40,
@@ -177,22 +200,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  imageContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
+  sectionButton: {
+    backgroundColor: '#007AFF',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 10,
   },
-  profileImage: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-  },
-  placeholderImage: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: '#e1e1e1',
-    justifyContent: 'center',
-    alignItems: 'center',
+  sectionButtonText: {
+    color: 'white',
+    fontSize: 18,
+    textAlign: 'center',
   },
 });
 
