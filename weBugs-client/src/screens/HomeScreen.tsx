@@ -29,7 +29,9 @@ const HomeScreen = () => {
 
   const fetchPosts = async () => {
     try {
-      const snapshot = await firestore.collection('serviceRequests').get();
+      const snapshot = await firestore.collection('serviceRequests')
+        .where('status', 'in', ['pending', 'completed'])
+        .get();
       const fetchedPosts: ServiceRequest[] = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
@@ -51,9 +53,16 @@ const HomeScreen = () => {
   const renderItem = ({ item }: { item: ServiceRequest }) => (
     <TouchableOpacity onPress={() => navigation.navigate('RequestDetails', { request: item })}>
       <View style={styles.postContainer}>
-        {item.imageUrl && (
-          <Image source={{ uri: item.imageUrl }} style={styles.postImage} />
-        )}
+        <View style={styles.imageContainer}>
+          {item.imageUrl && (
+            <Image source={{ uri: item.imageUrl }} style={styles.postImage} />
+          )}
+          {item.status === 'completed' && (
+            <View style={styles.completedOverlay}>
+              <Text style={styles.completedText}>완료</Text>
+            </View>
+          )}
+        </View>
         <View style={styles.postDetails}>
           <Text style={styles.postTitle}>{item.title}</Text>
           <Text style={styles.postLocation}>{item.location}</Text>
@@ -123,11 +132,30 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#ccc',
   },
+  imageContainer: {
+    position: 'relative',
+    marginRight: 15,
+  },
   postImage: {
     width: 80,
     height: 80,
-    marginRight: 15,
     borderRadius: 5,
+  },
+  completedOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  completedText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+    transform: [{ rotate: '-45deg' }],
   },
   postDetails: {
     flex: 1,

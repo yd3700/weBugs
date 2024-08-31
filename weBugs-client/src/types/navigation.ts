@@ -24,12 +24,15 @@ export type ServiceRequest = {
   transactionType: 'money' | 'volunteer';
   amount?: number;
   location: string;
-  status: string;
+  status: 'pending' | 'completed' | 'hidden';
   userId: string;
   createdAt: Date;
   updatedAt: Date;
   imageUrl?: string;
 };
+
+// Request 타입을 ServiceRequest와 동일하게 설정
+export type Request = ServiceRequest;
 
 export type Message = {
   messageId: string;
