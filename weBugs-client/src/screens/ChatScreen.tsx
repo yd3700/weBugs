@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Image, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Image, KeyboardAvoidingView, Platform, Modal, Alert } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, Message, User } from '../types/navigation';
 import { auth, firestore, createChatMessage } from '../../firebaseConfig';
 import firebase from 'firebase/compat/app';
+import Slider from '@react-native-community/slider';
+import { Ionicons } from '@expo/vector-icons';
 
 type ChatScreenRouteProp = RouteProp<RootStackParamList, 'Chat'>;
 type ChatScreenNavigationProp = StackNavigationProp<RootStackParamList>;
@@ -26,6 +28,9 @@ const ChatScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const lastReadTimestampRef = useRef<firebase.firestore.Timestamp | null>(null);
+  const [isCollector, setIsCollector] = useState(false);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [completionRating, setCompletionRating] = useState(5);
 
   const { chatId, otherUserId } = route.params;
 
@@ -53,6 +58,11 @@ const ChatScreen = () => {
         } else {
           setError('사용자 인증이 필요합니다.');
         }
+
+        // 현재 사용자가 채집자인지 확인 (요청 작성자가 아닌 경우)
+    const requestSnapshot = await firestore.collection('serviceRequests')
+        .where('userId', '==', otherUserId).get();
+        setIsCollector(!requestSnapshot.empty);  // 요청이 없으면 채집자
       } catch (error) {
         console.error("Error fetching user data:", error);
         setError('사용자 정보를 가져오는 중 오류가 발생했습니다.');
@@ -138,6 +148,45 @@ const ChatScreen = () => {
     }
   };
 
+  const handleCompleteCollection = async () => {
+    const completionMessage = "채집완료";
+    setNewMessage(completionMessage);
+    await handleSendMessage();
+  };
+
+  const handleCompletionResponse = async (accepted: boolean) => {
+    const responseMessage = accepted ? "수락됨" : "거절됨";
+    await createChatMessage(chatId, auth.currentUser!.uid, otherUserId, responseMessage);
+    if (accepted) {
+      const currentUserId = auth.currentUser!.uid;
+      // 서비스 요청 정보 가져오기
+      const requestSnapshot = await firestore.collection('serviceRequests')
+        .where('userId', '==', currentUserId).get();
+      
+      if (!requestSnapshot.empty) {
+        const requestDoc = requestSnapshot.docs[0];
+        const requestData = requestDoc.data();
+        
+        // 서비스 요청 상태를 완료로 업데이트
+        await requestDoc.ref.update({ status: 'completed' });
+        
+        // 채집 내역 저장 (제목과 이미지 URL 포함)
+        await firestore.collection('collectionHistory').add({
+          requesterId: currentUserId,
+          collectorId: otherUserId,
+          rating: completionRating,
+          completedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          requestTitle: requestData.title || '제목 없음',
+          requestImage: requestData.imageUrl || '',
+          requestId: requestDoc.id  // 서비스 요청 문서 ID 추가
+        });
+      } else {
+        console.error('관련된 서비스 요청을 찾을 수 없습니다.');
+      }
+    }
+    setShowCompletionModal(false);
+  };
+
   const formatTimestamp = (timestamp: firebase.firestore.Timestamp): string => {
     return timestamp.toDate().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
   };
@@ -163,6 +212,18 @@ const ChatScreen = () => {
     const displayTimestamp = formatTimestamp(item.timestamp);
     const userImage = isCurrentUser ? currentUser?.profilePicture : otherUser?.profilePicture;
     const userName = isCurrentUser ? currentUser?.name : otherUser?.name;
+
+    // "채집완료" 메시지 처리
+    if (item.content === "채집완료" && item.senderId !== auth.currentUser?.uid) {
+      return (
+        <TouchableOpacity onPress={() => setShowCompletionModal(true)}>
+          <View style={[styles.messageBubble, styles.completionMessage]}>
+            <Text style={styles.messageText}>{item.content}</Text>
+            <Text style={styles.completionInstructions}>터치하여 응답</Text>
+          </View>
+        </TouchableOpacity>
+      );
+    }
 
     return (
       <View style={[styles.messageContainer, isCurrentUser ? styles.currentUser : styles.otherUser]}>
@@ -225,6 +286,11 @@ const ChatScreen = () => {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
         style={styles.inputContainer}
       >
+        {isCollector && (
+          <TouchableOpacity onPress={handleCompleteCollection} style={styles.checkButton}>
+            <Ionicons name="checkmark-circle" size={24} color="#007AFF" />
+          </TouchableOpacity>
+        )}
         <TextInput
           style={styles.input}
           value={newMessage}
@@ -236,6 +302,42 @@ const ChatScreen = () => {
           <Text style={styles.sendButtonText}>전송</Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={showCompletionModal}
+        transparent={true}
+        animationType="slide"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>채집이 완료되었습니다</Text>
+            <Text style={styles.modalSubtitle}>서비스를 평가해주세요</Text>
+            <Slider
+              style={styles.slider}
+              minimumValue={0}
+              maximumValue={10}
+              step={1}
+              value={completionRating}
+              onValueChange={setCompletionRating}
+            />
+            <Text style={styles.ratingText}>{completionRating} / 10</Text>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={[styles.responseButton, styles.acceptButton]}
+                onPress={() => handleCompletionResponse(true)}
+              >
+                <Text style={styles.buttonText}>수락</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.responseButton, styles.rejectButton]}
+                onPress={() => handleCompletionResponse(false)}
+              >
+                <Text style={styles.buttonText}>거절</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -309,6 +411,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
     padding: 10,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
@@ -352,6 +455,68 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 10,
+  },
+  checkButton: {
+    padding: 10,
+  },
+  completionMessage: {
+    backgroundColor: '#FFD700',
+  },
+  completionInstructions: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: 5,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    marginBottom: 20,
+  },
+  slider: {
+    width: 200,
+    height: 40,
+  },
+  ratingText: {
+    fontSize: 18,
+    marginTop: 10,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    marginTop: 20,
+  },
+  responseButton: {
+    padding: 10,
+    borderRadius: 5,
+    width: 100,
+    alignItems: 'center',
+  },
+  acceptButton: {
+    backgroundColor: '#4CAF50',
+  },
+  rejectButton: {
+    backgroundColor: '#F44336',
+  },
+  buttonText: {
+    color: 'white',
+    fontWeight: 'bold',
   },
 });
 

@@ -58,5 +58,15 @@ export type Chat = {
   updatedAt: Date;
 };
 
+export type CollectionHistoryItem = {
+  id: string;
+  requesterId: string;
+  collectorId: string;
+  rating: number;
+  completedAt: Date;
+  requestTitle: string;  // 서비스 요청의 제목
+  requestImage: string;
+};
+
 export type ImagePickerResult = ImagePicker.ImagePickerResult;
 export type ImagePickerAsset = ImagePicker.ImagePickerAsset;
