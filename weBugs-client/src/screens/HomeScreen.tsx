@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, ActivityIndicator, TextInput, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, ServiceRequest } from '../types/navigation';
@@ -12,6 +12,9 @@ const HomeScreen = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [posts, setPosts] = useState<ServiceRequest[]>([]);
+  const [filteredPosts, setFilteredPosts] = useState<ServiceRequest[]>([]);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(user => {
@@ -27,6 +30,20 @@ const HomeScreen = () => {
     return () => unsubscribe();
   }, [navigation]);
 
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredPosts(posts);
+    } else {
+      const lowercasedQuery = searchQuery.toLowerCase();
+      const filtered = posts.filter(post =>
+        post.title.toLowerCase().includes(lowercasedQuery) ||
+        post.location.toLowerCase().includes(lowercasedQuery) ||
+        (post.amount && post.amount.toString().includes(lowercasedQuery))
+      );
+      setFilteredPosts(filtered);
+    }
+  }, [searchQuery, posts]);
+
   const fetchPosts = async () => {
     try {
       const snapshot = await firestore.collection('serviceRequests')
@@ -39,6 +56,7 @@ const HomeScreen = () => {
         updatedAt: doc.data().updatedAt.toDate(),
       })) as ServiceRequest[];
       setPosts(fetchedPosts);
+      setFilteredPosts(fetchedPosts);
     } catch (error) {
       console.error("Error fetching posts: ", error);
     }
@@ -48,6 +66,20 @@ const HomeScreen = () => {
     setRefreshing(true);
     await fetchPosts();
     setRefreshing(false);
+  };
+
+  const toggleSearch = () => {
+    setShowSearch(!showSearch);
+    if (showSearch) {
+      setSearchQuery('');
+      Keyboard.dismiss();
+    }
+  };
+
+  const dismissSearch = () => {
+    setShowSearch(false);
+    setSearchQuery('');
+    Keyboard.dismiss();
   };
 
   const renderItem = ({ item }: { item: ServiceRequest }) => (
@@ -87,22 +119,35 @@ const HomeScreen = () => {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.location}>우제2동</Text>
-        <View style={styles.headerIcons}>
-          <Icon name="search-outline" size={24} />
+    <TouchableWithoutFeedback onPress={dismissSearch}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.location}>우제2동</Text>
+          <TouchableOpacity onPress={toggleSearch}>
+            <Icon name="search-outline" size={24} />
+          </TouchableOpacity>
         </View>
+        {showSearch && (
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="검색..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onSubmitEditing={Keyboard.dismiss}
+            />
+          </View>
+        )}
+        <FlatList
+          data={filteredPosts}
+          renderItem={renderItem}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.postList}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+        />
       </View>
-      <FlatList
-        data={posts}
-        renderItem={renderItem}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.postList}
-        refreshing={refreshing}
-        onRefresh={handleRefresh}
-      />
-    </View>
+    </TouchableWithoutFeedback>
   );
 };
 
@@ -120,8 +165,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  headerIcons: {
-    flexDirection: 'row',
+  searchContainer: {
+    padding: 10,
+    backgroundColor: '#f0f0f0',
+  },
+  searchInput: {
+    backgroundColor: 'white',
+    padding: 10,
+    borderRadius: 5,
   },
   postList: {
     paddingBottom: 60,

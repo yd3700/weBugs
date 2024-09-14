@@ -3,10 +3,14 @@ import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Image, K
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, Message, User } from '../types/navigation';
-import { auth, firestore, createChatMessage } from '../../firebaseConfig';
+import { auth, firestore, createChatMessage, storage, uploadMedia } from '../../firebaseConfig';
 import firebase from 'firebase/compat/app';
 import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
+import { Video } from 'expo-av';
+import { ResizeMode } from '../types/navigation';
 
 type ChatScreenRouteProp = RouteProp<RootStackParamList, 'Chat'>;
 type ChatScreenNavigationProp = StackNavigationProp<RootStackParamList>;
@@ -31,6 +35,7 @@ const ChatScreen = () => {
   const [isCollector, setIsCollector] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [completionRating, setCompletionRating] = useState(5);
+  const [showMediaOptions, setShowMediaOptions] = useState(false);
 
   const { chatId, otherUserId } = route.params;
 
@@ -59,10 +64,9 @@ const ChatScreen = () => {
           setError('사용자 인증이 필요합니다.');
         }
 
-        // 현재 사용자가 채집자인지 확인 (요청 작성자가 아닌 경우)
-    const requestSnapshot = await firestore.collection('serviceRequests')
-        .where('userId', '==', otherUserId).get();
-        setIsCollector(!requestSnapshot.empty);  // 요청이 없으면 채집자
+        const requestSnapshot = await firestore.collection('serviceRequests')
+          .where('userId', '==', otherUserId).get();
+        setIsCollector(!requestSnapshot.empty);
       } catch (error) {
         console.error("Error fetching user data:", error);
         setError('사용자 정보를 가져오는 중 오류가 발생했습니다.');
@@ -152,6 +156,7 @@ const ChatScreen = () => {
     const completionMessage = "채집완료";
     setNewMessage(completionMessage);
     await handleSendMessage();
+    setShowMediaOptions(false);
   };
 
   const handleCompletionResponse = async (accepted: boolean) => {
@@ -159,7 +164,6 @@ const ChatScreen = () => {
     await createChatMessage(chatId, auth.currentUser!.uid, otherUserId, responseMessage);
     if (accepted) {
       const currentUserId = auth.currentUser!.uid;
-      // 서비스 요청 정보 가져오기
       const requestSnapshot = await firestore.collection('serviceRequests')
         .where('userId', '==', currentUserId).get();
       
@@ -167,10 +171,8 @@ const ChatScreen = () => {
         const requestDoc = requestSnapshot.docs[0];
         const requestData = requestDoc.data();
         
-        // 서비스 요청 상태를 완료로 업데이트
         await requestDoc.ref.update({ status: 'completed' });
         
-        // 채집 내역 저장 (제목과 이미지 URL 포함)
         await firestore.collection('collectionHistory').add({
           requesterId: currentUserId,
           collectorId: otherUserId,
@@ -178,7 +180,7 @@ const ChatScreen = () => {
           completedAt: firebase.firestore.FieldValue.serverTimestamp(),
           requestTitle: requestData.title || '제목 없음',
           requestImage: requestData.imageUrl || '',
-          requestId: requestDoc.id  // 서비스 요청 문서 ID 추가
+          requestId: requestDoc.id
         });
       } else {
         console.error('관련된 서비스 요청을 찾을 수 없습니다.');
@@ -187,12 +189,55 @@ const ChatScreen = () => {
     setShowCompletionModal(false);
   };
 
-  const formatTimestamp = (timestamp: firebase.firestore.Timestamp): string => {
-    return timestamp.toDate().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+  const handleMediaSelect = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      const asset = result.assets[0];
+      const type = asset.type === 'video' ? 'video' : 'photo';
+      await handleMediaUpload(asset.uri, type);
+    }
+    setShowMediaOptions(false);
   };
 
-  const isMessage = (item: ChatItem): item is Message => {
-    return 'senderId' in item && 'timestamp' in item;
+  const handleCameraCapture = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('권한 필요', '카메라 사용 권한이 필요합니다.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      const asset = result.assets[0];
+      const type = asset.type === 'video' ? 'video' : 'photo';
+      await handleMediaUpload(asset.uri, type);
+    }
+    setShowMediaOptions(false);
+  };
+
+  const handleMediaUpload = async (uri: string, type: 'photo' | 'video') => {
+    try {
+      const downloadURL = await uploadMedia(uri, type);
+      await createChatMessage(chatId, auth.currentUser!.uid, otherUserId, '', {
+        type: type,
+        url: downloadURL,
+      });
+    } catch (error) {
+      console.error('Error uploading media:', error);
+      Alert.alert('업로드 실패', '미디어 업로드 중 오류가 발생했습니다.');
+    }
   };
 
   const renderItem = ({ item }: { item: ChatItem }) => {
@@ -213,7 +258,6 @@ const ChatScreen = () => {
     const userImage = isCurrentUser ? currentUser?.profilePicture : otherUser?.profilePicture;
     const userName = isCurrentUser ? currentUser?.name : otherUser?.name;
 
-    // "채집완료" 메시지 처리
     if (item.content === "채집완료" && item.senderId !== auth.currentUser?.uid) {
       return (
         <TouchableOpacity onPress={() => setShowCompletionModal(true)}>
@@ -222,6 +266,25 @@ const ChatScreen = () => {
             <Text style={styles.completionInstructions}>터치하여 응답</Text>
           </View>
         </TouchableOpacity>
+      );
+    }
+
+    if (item.media) {
+      return (
+        <View style={[styles.messageContainer, isCurrentUser ? styles.currentUser : styles.otherUser]}>
+          {item.media.type === 'photo' ? (
+            <Image source={{ uri: item.media.url }} style={styles.mediaImage} />
+          ) : (
+            <Video
+              source={{ uri: item.media.url }}
+              style={styles.mediaVideo}
+              useNativeControls
+              resizeMode={ResizeMode.CONTAIN}
+              isLooping
+              shouldPlay={false}
+            />
+          )}
+        </View>
       );
     }
 
@@ -263,6 +326,14 @@ const ChatScreen = () => {
     );
   };
 
+  const formatTimestamp = (timestamp: firebase.firestore.Timestamp): string => {
+    return timestamp.toDate().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const isMessage = (item: ChatItem): item is Message => {
+    return 'senderId' in item && 'timestamp' in item;
+  };
+
   if (error) {
     return (
       <View style={styles.container}>
@@ -286,11 +357,9 @@ const ChatScreen = () => {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
         style={styles.inputContainer}
       >
-        {isCollector && (
-          <TouchableOpacity onPress={handleCompleteCollection} style={styles.checkButton}>
-            <Ionicons name="checkmark-circle" size={24} color="#007AFF" />
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity onPress={() => setShowMediaOptions(true)} style={styles.mediaButton}>
+          <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
+        </TouchableOpacity>
         <TextInput
           style={styles.input}
           value={newMessage}
@@ -302,6 +371,31 @@ const ChatScreen = () => {
           <Text style={styles.sendButtonText}>전송</Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={showMediaOptions}
+        transparent={true}
+        animationType="slide"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity style={styles.optionButton} onPress={handleCameraCapture}>
+              <Text style={styles.optionText}>카메라</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.optionButton} onPress={handleMediaSelect}>
+              <Text style={styles.optionText}>앨범 선택</Text>
+            </TouchableOpacity>
+            {isCollector && (
+              <TouchableOpacity style={styles.optionButton} onPress={handleCompleteCollection}>
+                <Text style={styles.optionText}>채집 완료</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.cancelButton} onPress={() => setShowMediaOptions(false)}>
+              <Text style={styles.cancelText}>취소</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={showCompletionModal}
@@ -456,16 +550,18 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 10,
   },
-  checkButton: {
+  mediaButton: {
     padding: 10,
   },
-  completionMessage: {
-    backgroundColor: '#FFD700',
+  mediaImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 10,
   },
-  completionInstructions: {
-    fontSize: 12,
-    fontStyle: 'italic',
-    marginTop: 5,
+  mediaVideo: {
+    width: 200,
+    height: 200,
+    borderRadius: 10,
   },
   modalContainer: {
     flex: 1,
@@ -478,6 +574,32 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 10,
     alignItems: 'center',
+    width: '80%',
+  },
+  optionButton: {
+    backgroundColor: '#007AFF',
+    padding: 15,
+    borderRadius: 5,
+    marginBottom: 10,
+    width: '100%',
+    alignItems: 'center',
+  },
+  optionText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  cancelButton: {
+    backgroundColor: '#FF3B30',
+    padding: 15,
+    borderRadius: 5,
+    width: '100%',
+    alignItems: 'center',
+  },
+  cancelText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   modalTitle: {
     fontSize: 18,
@@ -489,7 +611,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   slider: {
-    width: 200,
+    width: '100%',
     height: 40,
   },
   ratingText: {
@@ -505,7 +627,7 @@ const styles = StyleSheet.create({
   responseButton: {
     padding: 10,
     borderRadius: 5,
-    width: 100,
+    width: '45%',
     alignItems: 'center',
   },
   acceptButton: {
@@ -517,6 +639,14 @@ const styles = StyleSheet.create({
   buttonText: {
     color: 'white',
     fontWeight: 'bold',
+  },
+  completionMessage: {
+    backgroundColor: '#FFD700',
+  },
+  completionInstructions: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: 5,
   },
 });
 

@@ -30,16 +30,13 @@ const uploadImage = async (uri: string): Promise<string> => {
   const ref = storage.ref().child(`images/${filename}`);
 
   try {
-    // 먼저 사용자가 인증되어 있는지 확인
     const currentUser = auth.currentUser;
     if (!currentUser) {
       throw new Error('User not authenticated');
     }
 
-    // 업로드 전에 토큰 가져오기
     const token = await currentUser.getIdToken();
 
-    // XMLHttpRequest 사용
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.onload = async () => {
@@ -92,10 +89,10 @@ const createChatRoom = async (currentUserId: string, otherUserId: string) => {
   }
 };
 
-// 채팅 메시지 생성 예시
-const createChatMessage = async (chatId: string, senderId: string, recipientId: string, content: string) => {
-  if (!chatId || !senderId || !recipientId || !content) {
-    console.error("Invalid message data", { chatId, senderId, recipientId, content });
+// 수정된 채팅 메시지 생성 함수
+const createChatMessage = async (chatId: string, senderId: string, recipientId: string, content: string, media?: { type: 'photo' | 'video', url: string }) => {
+  if (!chatId || !senderId || !recipientId) {
+    console.error("Invalid message data", { chatId, senderId, recipientId, content, media });
     throw new Error("Invalid message data");
   }
 
@@ -105,7 +102,8 @@ const createChatMessage = async (chatId: string, senderId: string, recipientId: 
     recipientId,
     content,
     timestamp: firebase.firestore.Timestamp.now(),
-    read: false
+    read: false,
+    media: media || null
   };
 
   const chatRef = firestore.collection('chats').doc(chatId);
@@ -116,7 +114,7 @@ const createChatMessage = async (chatId: string, senderId: string, recipientId: 
       updatedAt: firebase.firestore.Timestamp.now()
     });
     console.log("Message added to chat room:", chatId);
-    return newMessage;  // 생성된 메시지 반환
+    return newMessage;
   } catch (error: any) {
     console.error("Error updating chat:", error);
     throw error;
@@ -151,7 +149,6 @@ const markMessageAsRead = async (chatId: string, userId: string) => {
     await chatRef.update({
       [`lastRead.${userId}`]: firebase.firestore.Timestamp.now()
     });
-    // console.log("Messages marked as read for user:", userId);
   } catch (error) {
     console.error("Error marking messages as read:", error);
     throw error;
@@ -204,11 +201,50 @@ const listenToUnreadMessageCount = (userId: string, callback: (count: number) =>
     });
 };
 
+// 새로 추가된 미디어 파일 업로드 함수
+const uploadMedia = async (uri: string, mediaType: 'photo' | 'video'): Promise<string> => {
+  const response = await fetch(uri);
+  const blob = await response.blob();
+  const filename = `${mediaType}_${Date.now()}_${uri.substring(uri.lastIndexOf('/') + 1)}`;
+  const ref = storage.ref().child(`chat_media/${filename}`);
+
+  try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    const token = await currentUser.getIdToken();
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.onload = async () => {
+        if (xhr.status === 200) {
+          const downloadURL = await ref.getDownloadURL();
+          resolve(downloadURL);
+        } else {
+          reject(new Error('Upload failed'));
+        }
+      };
+      xhr.onerror = reject;
+
+      xhr.open('POST', `https://firebasestorage.googleapis.com/v0/b/${firebaseConfig.storageBucket}/o?name=${encodeURIComponent(`chat_media/${filename}`)}`);
+      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+      xhr.setRequestHeader('Authorization', `Firebase ${token}`);
+      xhr.send(blob);
+    });
+  } catch (error) {
+    console.error("Error uploading media:", error);
+    throw error;
+  }
+};
+
 export { 
   auth, 
   firestore, 
   storage,
   uploadImage,
+  uploadMedia,
   createChatRoom,
   createChatMessage, 
   getChatList,

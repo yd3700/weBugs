@@ -1,5 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import { firebase } from '../../firebaseConfig';
+import { ResizeMode } from 'expo-av';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -31,8 +32,12 @@ export type ServiceRequest = {
   imageUrl?: string;
 };
 
-// Request 타입을 ServiceRequest와 동일하게 설정
 export type Request = ServiceRequest;
+
+export type MediaContent = {
+  type: 'photo' | 'video';
+  url: string;
+};
 
 export type Message = {
   messageId: string;
@@ -41,6 +46,7 @@ export type Message = {
   recipientId: string;
   timestamp: firebase.firestore.Timestamp;
   read: boolean;
+  media?: MediaContent;
 };
 
 export type User = {
@@ -64,9 +70,29 @@ export type CollectionHistoryItem = {
   collectorId: string;
   rating: number;
   completedAt: Date;
-  requestTitle: string;  // 서비스 요청의 제목
+  requestTitle: string;
   requestImage: string;
+};
+
+export type Notification = {
+  foreground: boolean;
+  userInteraction: boolean;
+  message: string | object;
+  data: object;
+  subText?: string;
+  badge?: number;
+  alert?: object;
+  sound?: string;
+  finish: (fetchResult: string) => void;
 };
 
 export type ImagePickerResult = ImagePicker.ImagePickerResult;
 export type ImagePickerAsset = ImagePicker.ImagePickerAsset;
+
+// 추가된 타입 정의
+export type MediaPickerResult = {
+  type: 'photo' | 'video';
+  uri: string;
+};
+
+export { ResizeMode };
