@@ -133,12 +133,14 @@ const RequestDetailsScreen = ({ route }: Props) => {
         </View>
       </View>
 
-      <TouchableOpacity 
-        style={styles.chatButton} 
-        onPress={handleChatPress}
-      >
-        <Text style={styles.chatButtonText}>채팅하기</Text>
-      </TouchableOpacity>
+      {request.status !== 'completed' && auth.currentUser?.uid !== request.userId && (
+        <TouchableOpacity 
+          style={styles.chatButton} 
+          onPress={handleChatPress}
+        >
+          <Text style={styles.chatButtonText}>채팅하기</Text>
+        </TouchableOpacity>
+      )}
     </ScrollView>
   );
 };

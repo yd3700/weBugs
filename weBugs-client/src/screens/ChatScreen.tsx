@@ -162,30 +162,52 @@ const ChatScreen = () => {
   const handleCompletionResponse = async (accepted: boolean) => {
     const responseMessage = accepted ? "수락됨" : "거절됨";
     await createChatMessage(chatId, auth.currentUser!.uid, otherUserId, responseMessage);
+    
     if (accepted) {
-      const currentUserId = auth.currentUser!.uid;
-      const requestSnapshot = await firestore.collection('serviceRequests')
-        .where('userId', '==', currentUserId).get();
-      
-      if (!requestSnapshot.empty) {
-        const requestDoc = requestSnapshot.docs[0];
-        const requestData = requestDoc.data();
+      try {
+        const currentUserId = auth.currentUser!.uid;
+        const requestSnapshot = await firestore.collection('serviceRequests')
+          .where('userId', '==', currentUserId).get();
         
-        await requestDoc.ref.update({ status: 'completed' });
-        
-        await firestore.collection('collectionHistory').add({
-          requesterId: currentUserId,
-          collectorId: otherUserId,
-          rating: completionRating,
-          completedAt: firebase.firestore.FieldValue.serverTimestamp(),
-          requestTitle: requestData.title || '제목 없음',
-          requestImage: requestData.imageUrl || '',
-          requestId: requestDoc.id
-        });
-      } else {
-        console.error('관련된 서비스 요청을 찾을 수 없습니다.');
+        if (!requestSnapshot.empty) {
+          const requestDoc = requestSnapshot.docs[0];
+          const requestData = requestDoc.data();
+          
+          // 서비스 요청 상태 업데이트
+          await requestDoc.ref.update({ status: 'completed' });
+          
+          // 채집 이력 추가
+          await firestore.collection('collectionHistory').add({
+            requesterId: currentUserId,
+            collectorId: otherUserId,
+            rating: completionRating,
+            completedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            requestTitle: requestData.title || '제목 없음',
+            requestImage: requestData.imageUrl || '',
+            requestId: requestDoc.id
+          });
+
+          // 채팅방 삭제
+          await firestore.collection('chats').doc(chatId).delete();
+
+          // 사용자에게 알림
+          Alert.alert(
+            "채집 완료",
+            "채집이 완료되었습니다. 이 채팅방은 곧 삭제됩니다.",
+            [{ text: "확인", onPress: () => navigation.goBack() }]
+          );
+        } else {
+          console.error('관련된 서비스 요청을 찾을 수 없습니다.');
+          Alert.alert("오류", "서비스 요청을 찾을 수 없습니다.");
+        }
+      } catch (error) {
+        console.error("채집 완료 처리 중 오류 발생:", error);
+        Alert.alert("오류", "채집 완료 처리 중 문제가 발생했습니다.");
       }
+    } else {
+      Alert.alert("거절됨", "채집 완료 요청이 거절되었습니다.");
     }
+    
     setShowCompletionModal(false);
   };
 
@@ -227,16 +249,25 @@ const ChatScreen = () => {
     setShowMediaOptions(false);
   };
 
+  const [isUploading, setIsUploading] = useState(false);
+
   const handleMediaUpload = async (uri: string, type: 'photo' | 'video') => {
+    setIsUploading(true);
     try {
       const downloadURL = await uploadMedia(uri, type);
       await createChatMessage(chatId, auth.currentUser!.uid, otherUserId, '', {
         type: type,
         url: downloadURL,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error uploading media:', error);
-      Alert.alert('업로드 실패', '미디어 업로드 중 오류가 발생했습니다.');
+      if (error instanceof Error) {
+        Alert.alert('업로드 실패', `미디어 업로드 중 오류가 발생했습니다: ${error.message}`);
+      } else {
+        Alert.alert('업로드 실패', '미디어 업로드 중 알 수 없는 오류가 발생했습니다.');
+      }
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -272,22 +303,38 @@ const ChatScreen = () => {
     if (item.media) {
       return (
         <View style={[styles.messageContainer, isCurrentUser ? styles.currentUser : styles.otherUser]}>
-          {item.media.type === 'photo' ? (
-            <Image source={{ uri: item.media.url }} style={styles.mediaImage} />
-          ) : (
-            <Video
-              source={{ uri: item.media.url }}
-              style={styles.mediaVideo}
-              useNativeControls
-              resizeMode={ResizeMode.CONTAIN}
-              isLooping
-              shouldPlay={false}
-            />
-          )}
+          <View style={styles.messageContent}>
+            {item.media.type === 'photo' ? (
+              <Image source={{ uri: item.media.url }} style={styles.mediaImage} />
+            ) : (
+              <Video
+                source={{ uri: item.media.url }}
+                style={styles.mediaVideo}
+                useNativeControls
+                resizeMode={ResizeMode.CONTAIN}
+                isLooping
+                shouldPlay={false}
+              />
+            )}
+            <Text style={[styles.timestamp, isCurrentUser ? styles.currentUserTimestamp : styles.otherUserTimestamp]}>
+              {displayTimestamp}
+            </Text>
+          </View>
+          {isCurrentUser ? (
+            <View style={styles.userInfo}>
+              {userImage ? (
+                <Image source={{ uri: userImage }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, styles.placeholderImage]}>
+                  <Text>{userName?.charAt(0).toUpperCase()}</Text>
+                </View>
+              )}
+              <Text style={styles.userName}>{userName}</Text>
+            </View>
+          ) : null}
         </View>
       );
     }
-
     return (
       <View style={[styles.messageContainer, isCurrentUser ? styles.currentUser : styles.otherUser]}>
         {!isCurrentUser && (
