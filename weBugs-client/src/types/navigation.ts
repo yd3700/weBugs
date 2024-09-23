@@ -49,6 +49,13 @@ export type Message = {
   media?: MediaContent;
 };
 
+export type DateSeparator = {
+  type: 'date';
+  date: string;
+};
+
+export type ChatItem = Message | DateSeparator;
+
 export type User = {
   id: string;
   name: string;

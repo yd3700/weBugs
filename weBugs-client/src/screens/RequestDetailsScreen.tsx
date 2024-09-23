@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
-import { RouteProp, useNavigation } from '@react-navigation/native';
+import { RouteProp, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, ServiceRequest } from '../types/navigation';
-import { firestore, auth, createChatRoom } from '../../firebaseConfig';
+import { firestore, auth, createChatRoom, hideChatRoom } from '../../firebaseConfig';
 
 type RequestDetailsScreenRouteProp = RouteProp<RootStackParamList, 'RequestDetails'>;
 type RequestDetailsScreenNavigationProp = StackNavigationProp<RootStackParamList>;
@@ -20,39 +20,45 @@ const RequestDetailsScreen = ({ route }: Props) => {
 
   const requestId = route.params?.request?.id;
 
-  useEffect(() => {
-    const fetchRequest = async () => {
-      if (requestId) {
-        try {
-          const doc = await firestore.collection('serviceRequests').doc(requestId).get();
-          if (doc.exists) {
-            const requestData = doc.data();
-            if (requestData) {
-              setRequest({
-                ...requestData,
-                id: doc.id,
-                createdAt: requestData.createdAt.toDate(),
-                updatedAt: requestData.updatedAt.toDate(),
-              } as ServiceRequest);
-            } else {
-              setError('요청 데이터를 불러올 수 없습니다.');
-            }
+  const fetchRequest = useCallback(async () => {
+    if (requestId) {
+      try {
+        const doc = await firestore.collection('serviceRequests').doc(requestId).get();
+        if (doc.exists) {
+          const requestData = doc.data();
+          if (requestData) {
+            setRequest({
+              ...requestData,
+              id: doc.id,
+              createdAt: requestData.createdAt.toDate(),
+              updatedAt: requestData.updatedAt.toDate(),
+            } as ServiceRequest);
           } else {
-            setError('요청 정보를 찾을 수 없습니다.');
+            setError('요청 데이터를 불러올 수 없습니다.');
           }
-        } catch (err) {
-          setError('요청 정보를 불러오는 중 오류가 발생했습니다.');
-        } finally {
-          setLoading(false);
+        } else {
+          setError('요청 정보를 찾을 수 없습니다.');
         }
-      } else {
-        setError('요청 ID가 유효하지 않습니다.');
+      } catch (err) {
+        setError('요청 정보를 불러오는 중 오류가 발생했습니다.');
+      } finally {
         setLoading(false);
       }
-    };
-
-    fetchRequest();
+    } else {
+      setError('요청 ID가 유효하지 않습니다.');
+      setLoading(false);
+    }
   }, [requestId]);
+
+  useEffect(() => {
+    fetchRequest();
+  }, [fetchRequest]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchRequest();
+    }, [fetchRequest])
+  );
 
   const handleChatPress = async () => {
     if (!request || !auth.currentUser) return;
@@ -107,7 +113,9 @@ const RequestDetailsScreen = ({ route }: Props) => {
           <Image source={{ uri: request.imageUrl }} style={styles.image} />
         )}
         <Text style={styles.title}>{request.title}</Text>
-        <Text style={styles.status}>상태: {request.status}</Text>
+        <Text style={[styles.status, request.status === 'completed' && styles.completedStatus]}>
+          상태: {request.status === 'completed' ? '완료됨' : request.status}
+        </Text>
         
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>설명</Text>
@@ -131,6 +139,13 @@ const RequestDetailsScreen = ({ route }: Props) => {
           <Text style={styles.sectionTitle}>생성 시간</Text>
           <Text style={styles.info}>{formatDate(request.createdAt)}</Text>
         </View>
+
+        {request.status === 'completed' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>완료 시간</Text>
+            <Text style={styles.info}>{formatDate(request.updatedAt)}</Text>
+          </View>
+        )}
       </View>
 
       {request.status !== 'completed' && auth.currentUser?.uid !== request.userId && (
@@ -220,6 +235,10 @@ const styles = StyleSheet.create({
     color: 'red',
     textAlign: 'center',
     marginTop: 20,
+  },
+  completedStatus: {
+    color: 'green',
+    fontWeight: 'bold',
   },
 });
 

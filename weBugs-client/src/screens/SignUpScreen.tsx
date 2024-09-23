@@ -31,10 +31,10 @@ const SignUpScreen = () => {
   const checkNameAvailability = async () => {
     if (name.length < 2) {
       setIsNameAvailable(false);
+      setError('닉네임은 2자 이상이어야 합니다.');
       return;
     }
 
-    // 닉네임 형식 검사
     if (!/^[a-z0-9]+$/.test(name)) {
       setError('닉네임은 소문자와 숫자만 사용할 수 있습니다.');
       setIsNameAvailable(false);
@@ -42,13 +42,21 @@ const SignUpScreen = () => {
     }
 
     setIsCheckingName(true);
+    setError(null);
+
     try {
+      console.log("Checking name availability for:", name);
       const snapshot = await firestore.collection('users').where('name', '==', name).get();
-      setIsNameAvailable(snapshot.empty);
-      setError(null);
+      const isAvailable = snapshot.empty;
+      console.log("Name availability result:", isAvailable);
+      setIsNameAvailable(isAvailable);
+      if (!isAvailable) {
+        setError('이미 사용 중인 닉네임입니다.');
+      }
     } catch (error) {
       console.error("Error checking name availability:", error);
       setIsNameAvailable(false);
+      setError('닉네임 확인 중 오류가 발생했습니다.');
     } finally {
       setIsCheckingName(false);
     }
@@ -69,6 +77,8 @@ const SignUpScreen = () => {
     setError(null);
 
     try {
+      console.log("Starting sign up process for:", name);
+      
       // 최종 닉네임 중복 확인
       const finalCheck = await firestore.collection('users').where('name', '==', name).get();
       if (!finalCheck.empty) {
@@ -87,11 +97,24 @@ const SignUpScreen = () => {
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         });
 
-        Alert.alert('회원가입 성공', '회원가입이 완료되었습니다.', [
-          { text: 'OK', onPress: () => navigation.navigate('HomeTabs') }
-        ]);
-      }
+        console.log("User successfully created:", user.uid);
+      Alert.alert(
+        '회원가입 성공', 
+        '회원가입이 완료되었습니다. 홈 화면으로 이동합니다.', 
+        [{ 
+          text: 'OK', 
+          onPress: () => {
+            // 회원가입 후 자동 로그인 처리
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'HomeTabs' }],
+            });
+          }
+        }]
+      );
+    }
     } catch (error: any) {
+      console.error("Sign up error:", error);
       setError(error.message);
     } finally {
       setIsLoading(false);

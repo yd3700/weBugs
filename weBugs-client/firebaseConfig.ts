@@ -3,15 +3,27 @@ import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
 import 'firebase/compat/storage';
 
+//기존 weBugs
+// const firebaseConfig = {
+//     apiKey: "AIzaSyBxmmIf4HpA6kPKPYYyxCLRkksPh4RWbA8",
+//     authDomain: "webugs-201107.firebaseapp.com",
+//     projectId: "webugs-201107",
+//     storageBucket: "webugs-201107.appspot.com",
+//     messagingSenderId: "492807142709",
+//     appId: "1:492807142709:web:31f67f999ed8b55d2b607c",
+//     measurementId: "G-YZPYFRSDZ8"
+// };
+
+// //testweBugs
 const firebaseConfig = {
-    apiKey: "AIzaSyBxmmIf4HpA6kPKPYYyxCLRkksPh4RWbA8",
-    authDomain: "webugs-201107.firebaseapp.com",
-    projectId: "webugs-201107",
-    storageBucket: "webugs-201107.appspot.com",
-    messagingSenderId: "492807142709",
-    appId: "1:492807142709:web:31f67f999ed8b55d2b607c",
-    measurementId: "G-YZPYFRSDZ8"
-};
+    apiKey: "AIzaSyDKJ1t6dEHbdTWYPYLgCIms4P-9_KR9C9Y",
+    authDomain: "testwebugs.firebaseapp.com",
+    projectId: "testwebugs",
+    storageBucket: "testwebugs.appspot.com",
+    messagingSenderId: "290021362682",
+    appId: "1:290021362682:web:e92eda9ee1e4fbdecaf243",
+    measurementId: "G-46G5BVJZNY"
+  };
 
 // Firebase 초기화
 if (!firebase.apps.length) {
@@ -100,11 +112,13 @@ const createChatMessage = async (chatId: string, senderId: string, recipientId: 
     messageId: firestore.collection('chats').doc().id,
     senderId,
     recipientId,
-    content,
+    content: content || "채집완료", // 빈 content일 경우 "채집완료"로 설정
     timestamp: firebase.firestore.Timestamp.now(),
     read: false,
     media: media || null
   };
+
+  console.log("Attempting to add message:", newMessage); // 디버깅을 위한 로그 추가
 
   const chatRef = firestore.collection('chats').doc(chatId);
   
@@ -113,10 +127,21 @@ const createChatMessage = async (chatId: string, senderId: string, recipientId: 
       messages: firebase.firestore.FieldValue.arrayUnion(newMessage),
       updatedAt: firebase.firestore.Timestamp.now()
     });
-    console.log("Message added to chat room:", chatId);
+    console.log("Message successfully added to chat room:", chatId);
     return newMessage;
   } catch (error: any) {
     console.error("Error updating chat:", error);
+    throw error;
+  }
+};
+
+const sendCollectionCompleteMessage = async (chatId: string, senderId: string, recipientId: string) => {
+  try {
+    const message = await createChatMessage(chatId, senderId, recipientId, "채집완료");
+    console.log("Collection complete message sent:", message);
+    return message;
+  } catch (error) {
+    console.error("Error sending collection complete message:", error);
     throw error;
   }
 };
@@ -239,6 +264,21 @@ const uploadMedia = async (uri: string, mediaType: 'photo' | 'video'): Promise<s
   }
 };
 
+const hideChatRoom = async (chatId: string) => {
+  const chatRef = firestore.collection('chats').doc(chatId);
+  
+  try {
+    await chatRef.update({
+      hidden: true,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    console.log("Chat room hidden:", chatId);
+  } catch (error) {
+    console.error("Error hiding chat room:", error);
+    throw error;
+  }
+};
+
 export { 
   auth, 
   firestore, 
@@ -246,10 +286,12 @@ export {
   uploadImage,
   uploadMedia,
   createChatRoom,
-  createChatMessage, 
+  createChatMessage,
+  sendCollectionCompleteMessage,
   getChatList,
   markMessageAsRead,
   getUnreadMessageCount,
   listenToUnreadMessageCount,
+  hideChatRoom,
   firebase 
 };
