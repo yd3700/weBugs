@@ -23,6 +23,7 @@ type Chat = {
   otherUserProfilePicture: string;
   updatedAt: firebase.firestore.Timestamp;
   unreadCount: number;
+  hidden?: boolean; // 숨김 상태를 나타내는 필드 추가
 };
 
 type ChatListScreenProps = {
@@ -47,13 +48,17 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ setTotalUnreadCount }) 
     }
 
     const unsubscribe = firestore.collection('chats')
-      .where('participants', 'array-contains', user.uid)
-      .onSnapshot(async (snapshot) => {
-        const fetchedChats: Chat[] = [];
-        let totalUnread = 0;
+    .where('participants', 'array-contains', user.uid)
+    .onSnapshot(async (snapshot) => {
+      const fetchedChats: Chat[] = [];
+      let totalUnread = 0;
 
-        for (const doc of snapshot.docs) {
-          const chatData = doc.data();
+      for (const doc of snapshot.docs) {
+        const chatData = doc.data();
+        
+        // 채집 완료된 채팅방 제외
+        if (chatData.collectionCompleted) continue;
+
           const otherUserId = chatData.participants.find((id: string) => id !== user.uid);
           
           if (otherUserId) {
@@ -73,6 +78,7 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ setTotalUnreadCount }) 
               otherUserProfilePicture: otherUserData?.profilePicture || '',
               updatedAt: chatData.updatedAt,
               unreadCount,
+              hidden: chatData.hidden || false,
             });
           }
         }
@@ -85,8 +91,8 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ setTotalUnreadCount }) 
         setIsLoading(false);
       });
 
-    return () => unsubscribe();
-  }, [navigation, calculateUnreadCount, setTotalUnreadCount]);
+      return () => unsubscribe();
+    }, [navigation, calculateUnreadCount, setTotalUnreadCount]);
 
   const formatTimestamp = (timestamp: firebase.firestore.Timestamp | Date | { seconds: number; nanoseconds: number } | string | null): string => {
     if (timestamp instanceof firebase.firestore.Timestamp) {

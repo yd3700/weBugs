@@ -11,7 +11,7 @@ type MessageItemProps = {
 };
 
 function isMessage(item: ChatItem): item is Message {
-  return (item as Message).senderId !== undefined;
+  return 'senderId' in item && 'content' in item;
 }
 
 const MessageItem: React.FC<MessageItemProps> = React.memo(({ item, currentUser, otherUser, onCompletionPress }) => {
@@ -29,7 +29,7 @@ const MessageItem: React.FC<MessageItemProps> = React.memo(({ item, currentUser,
           <Text style={styles.completionInstructions}>터치하여 응답</Text>
         </TouchableOpacity>
       );
-    } else if (message.media) {
+    } else if (message.media && message.media.url) {
       if (message.media.type === 'photo') {
         return <Image source={{ uri: message.media.url }} style={styles.mediaImage} />;
       } else if (message.media.type === 'video') {
@@ -67,7 +67,9 @@ const MessageItem: React.FC<MessageItemProps> = React.memo(({ item, currentUser,
     }
 
     const isCurrentUser = item.senderId === currentUser.id;
-    const displayTimestamp = new Date(item.timestamp.seconds * 1000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+    const displayTimestamp = item.timestamp && item.timestamp.seconds
+      ? new Date(item.timestamp.seconds * 1000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+      : '';
     const userImage = isCurrentUser ? currentUser.profilePicture : otherUser?.profilePicture;
     const userName = isCurrentUser ? currentUser.name : otherUser?.name;
 

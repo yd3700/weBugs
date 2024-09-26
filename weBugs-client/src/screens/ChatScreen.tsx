@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Keyboard
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, Message, User } from '../types/navigation';
-import { auth, firestore, createChatMessage, uploadMedia, sendCollectionCompleteMessage, hideChatRoom } from '../../firebaseConfig';
+import { auth, firestore, createChatMessage, uploadMedia, sendCollectionCompleteMessage, hideChatRoom, deleteChatRoom  } from '../../firebaseConfig';
 import firebase from 'firebase/compat/app';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -22,10 +22,11 @@ type DateSeparator = {
 type ChatItem = Message | DateSeparator;
 
 const addDateSeparators = (messages: Message[]): ChatItem[] => {
+  const sortedMessages = messages.sort((a, b) => a.timestamp.seconds - b.timestamp.seconds);
   const messagesWithDates: ChatItem[] = [];
   let currentDate = '';
 
-  messages.forEach((message) => {
+  sortedMessages.forEach((message) => {
     const messageDate = formatDate(message.timestamp);
     if (messageDate !== currentDate) {
       messagesWithDates.push({ type: 'date', date: messageDate });
@@ -139,11 +140,18 @@ const ChatScreen: React.FC = () => {
       await sendCollectionCompleteMessage(chatId, auth.currentUser!.uid, otherUserId);
       console.log("Collection complete message sent successfully");
       setShowMediaOptions(false);
+      
+      // 채집자에게 완료 메시지 표시
+      Alert.alert(
+        "채집 완료",
+        "채집 완료 메시지를 보냈습니다. 요청자의 승인을 기다립니다.",
+        [{ text: "확인", onPress: () => navigation.navigate('HomeTabs') }]
+      );
     } catch (error) {
       console.error("Error sending collection complete message:", error);
       Alert.alert("오류", "채집완료 메시지 전송 중 오류가 발생했습니다.");
     }
-  }, [chatId, otherUserId]);
+  }, [chatId, otherUserId, navigation]);
 
   const handleCompletionResponse = useCallback(async (accepted: boolean) => {
     const responseMessage = accepted ? "수락됨" : "거절됨";
@@ -157,6 +165,7 @@ const ChatScreen: React.FC = () => {
         const requestDoc = requestSnapshot.docs[0];
         const requestData = requestDoc.data();
         
+        // 요청 상태를 'completed'로 업데이트
         await requestDoc.ref.update({ 
           status: 'completed',
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -171,9 +180,12 @@ const ChatScreen: React.FC = () => {
           requestImage: requestData.imageUrl || '',
           requestId: requestDoc.id
         });
-
-        await hideChatRoom(chatId);
-        navigation.goBack();
+  
+        // 채팅방 삭제
+        await deleteChatRoom(chatId);
+        
+        // 홈 화면으로 이동 (요청자)
+        navigation.navigate('HomeTabs');
       } else {
         console.error('관련된 서비스 요청을 찾을 수 없습니다.');
       }

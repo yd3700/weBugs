@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { RouteProp, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, ServiceRequest } from '../types/navigation';
-import { firestore, auth, createChatRoom, hideChatRoom } from '../../firebaseConfig';
+import { firestore, auth, createChatRoom } from '../../firebaseConfig';
 
 type RequestDetailsScreenRouteProp = RouteProp<RootStackParamList, 'RequestDetails'>;
 type RequestDetailsScreenNavigationProp = StackNavigationProp<RootStackParamList>;
@@ -62,16 +62,16 @@ const RequestDetailsScreen = ({ route }: Props) => {
 
   const handleChatPress = async () => {
     if (!request || !auth.currentUser) return;
-
+  
     try {
       const currentUserId = auth.currentUser.uid;
       const otherUserId = request.userId;
-
+  
       if (currentUserId === otherUserId) {
         setError('자신의 요청에는 채팅을 시작할 수 없습니다.');
         return;
       }
-
+  
       const chatId = await createChatRoom(currentUserId, otherUserId);
       navigation.navigate('Chat', { chatId, otherUserId });
     } catch (error) {

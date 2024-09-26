@@ -74,29 +74,24 @@ const uploadImage = async (uri: string): Promise<string> => {
 
 // 채팅방 생성 로직
 const createChatRoom = async (currentUserId: string, otherUserId: string) => {
-  const chatId = [currentUserId, otherUserId].sort().join('-');
+  const chatId = firestore.collection('chats').doc().id; // 새로운 고유 ID 생성
   const chatRef = firestore.collection('chats').doc(chatId);
   
   try {
-    const chatDoc = await chatRef.get();
-    if (!chatDoc.exists) {
-      await chatRef.set({
-        participants: [currentUserId, otherUserId],
-        messages: [],
-        createdAt: firebase.firestore.Timestamp.now(),
-        updatedAt: firebase.firestore.Timestamp.now(),
-        lastRead: {
-          [currentUserId]: firebase.firestore.Timestamp.now(),
-          [otherUserId]: firebase.firestore.Timestamp.now()
-        }
-      });
-      console.log("New chat room created:", chatId);
-    } else {
-      console.log("Chat room already exists:", chatId);
-    }
+    await chatRef.set({
+      participants: [currentUserId, otherUserId],
+      messages: [],
+      createdAt: firebase.firestore.Timestamp.now(),
+      updatedAt: firebase.firestore.Timestamp.now(),
+      lastRead: {
+        [currentUserId]: firebase.firestore.Timestamp.now(),
+        [otherUserId]: firebase.firestore.Timestamp.now()
+      }
+    });
+    console.log("New chat room created:", chatId);
     return chatId;
   } catch (error) {
-    console.error("Error creating/checking chat room:", error);
+    console.error("Error creating chat room:", error);
     throw error;
   }
 };
@@ -138,6 +133,13 @@ const createChatMessage = async (chatId: string, senderId: string, recipientId: 
 const sendCollectionCompleteMessage = async (chatId: string, senderId: string, recipientId: string) => {
   try {
     const message = await createChatMessage(chatId, senderId, recipientId, "채집완료");
+    
+    // 채집완료 상태를 채팅방에 저장
+    await firestore.collection('chats').doc(chatId).update({
+      collectionCompleted: true,
+      collectionCompletedBy: senderId
+    });
+
     console.log("Collection complete message sent:", message);
     return message;
   } catch (error) {
@@ -279,6 +281,27 @@ const hideChatRoom = async (chatId: string) => {
   }
 };
 
+const deleteChatRoom = async (chatId: string) => {
+  const chatRef = firestore.collection('chats').doc(chatId);
+  
+  try {
+    // 채팅방 정보 가져오기
+    const chatDoc = await chatRef.get();
+    const chatData = chatDoc.data();
+
+    if (chatData && chatData.collectionCompleted) {
+      // 채집 완료된 경우에만 채팅방 삭제
+      await chatRef.delete();
+      console.log("Chat room deleted:", chatId);
+    } else {
+      console.log("Chat room not deleted: Collection not completed");
+    }
+  } catch (error) {
+    console.error("Error deleting chat room:", error);
+    throw error;
+  }
+};
+
 export { 
   auth, 
   firestore, 
@@ -292,6 +315,7 @@ export {
   markMessageAsRead,
   getUnreadMessageCount,
   listenToUnreadMessageCount,
+  deleteChatRoom,
   hideChatRoom,
   firebase 
 };
