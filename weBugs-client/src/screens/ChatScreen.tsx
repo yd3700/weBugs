@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Keyboard
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, Message, User } from '../types/navigation';
-import { auth, firestore, createChatMessage, uploadMedia, sendCollectionCompleteMessage, hideChatRoom, deleteChatRoom  } from '../../firebaseConfig';
+import { auth, firestore, createChatMessage, uploadMedia, sendCollectionCompleteMessage, leaveChatRoom , deleteChatRoom  } from '../../firebaseConfig';
 import firebase from 'firebase/compat/app';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -141,21 +141,32 @@ const ChatScreen: React.FC = () => {
       console.log("Collection complete message sent successfully");
       setShowMediaOptions(false);
       
-      // 채집자에게 완료 메시지 표시
+      // 채집자에게 완료 메시지 표시 (채팅방을 나가지 않음)
       Alert.alert(
         "채집 완료",
         "채집 완료 메시지를 보냈습니다. 요청자의 승인을 기다립니다.",
-        [{ text: "확인", onPress: () => navigation.navigate('HomeTabs') }]
+        [{ text: "확인" }]
       );
     } catch (error) {
       console.error("Error sending collection complete message:", error);
       Alert.alert("오류", "채집완료 메시지 전송 중 오류가 발생했습니다.");
     }
-  }, [chatId, otherUserId, navigation]);
+  }, [chatId, otherUserId]);
+
+  const handleLeaveChat = useCallback(async () => {
+    try {
+      await leaveChatRoom(chatId, auth.currentUser!.uid);
+      navigation.navigate('HomeTabs');
+    } catch (error) {
+      console.error("Error leaving chat room:", error);
+      Alert.alert("오류", "채팅방을 나가는 중 오류가 발생했습니다.");
+    }
+  }, [chatId, navigation]);
 
   const handleCompletionResponse = useCallback(async (accepted: boolean) => {
     const responseMessage = accepted ? "수락됨" : "거절됨";
     await createChatMessage(chatId, auth.currentUser!.uid, otherUserId, responseMessage);
+    
     if (accepted) {
       const currentUserId = auth.currentUser!.uid;
       const requestSnapshot = await firestore.collection('serviceRequests')
@@ -165,7 +176,6 @@ const ChatScreen: React.FC = () => {
         const requestDoc = requestSnapshot.docs[0];
         const requestData = requestDoc.data();
         
-        // 요청 상태를 'completed'로 업데이트
         await requestDoc.ref.update({ 
           status: 'completed',
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -181,14 +191,20 @@ const ChatScreen: React.FC = () => {
           requestId: requestDoc.id
         });
   
-        // 채팅방 삭제
+        // 채팅방 삭제 및 홈 화면으로 이동 (수락 시에만)
         await deleteChatRoom(chatId);
-        
-        // 홈 화면으로 이동 (요청자)
         navigation.navigate('HomeTabs');
       } else {
         console.error('관련된 서비스 요청을 찾을 수 없습니다.');
       }
+    } else {
+      await firestore.collection('chats').doc(chatId).update({
+        collectionRejected: true,
+        collectionRejectedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      // 거절 시 채팅방에 남음
+      Alert.alert("거절됨", "채집 완료 요청이 거절되었습니다.");
+      // 여기서 채팅방을 나가거나 삭제하지 않음
     }
     setShowCompletionModal(false);
   }, [chatId, otherUserId, completionRating, navigation]);
@@ -305,7 +321,10 @@ const ChatScreen: React.FC = () => {
           <Text style={styles.sendButtonText}>전송</Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>
-
+      {/*채팅방 나가기 버튼 비활성화
+      <TouchableOpacity style={styles.leaveButton} onPress={handleLeaveChat}>
+        <Text style={styles.leaveButtonText}>채팅방 나가기</Text>
+      </TouchableOpacity> */}
       <MediaOptions
         visible={showMediaOptions}
         onClose={() => setShowMediaOptions(false)}
@@ -314,7 +333,6 @@ const ChatScreen: React.FC = () => {
         onCompleteCollection={handleCompleteCollection}
         isCollector={isCollector}
       />
-
       <CompletionModal
         visible={showCompletionModal}
         rating={completionRating}
@@ -353,15 +371,13 @@ const styles = StyleSheet.create({
     maxHeight: 100,
   },
   sendButton: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#0084FF',
+    backgroundColor: '#007AFF',
+    padding: 10,
     borderRadius: 20,
-    paddingHorizontal: 15,
-    alignSelf: 'flex-end',
+    marginLeft: 10,
   },
   sendButtonText: {
-    color: '#FFFFFF',
+    color: 'white',
     fontWeight: 'bold',
   },
   error: {
@@ -372,6 +388,18 @@ const styles = StyleSheet.create({
   mediaButton: {
     padding: 10,
   },
+  leaveButton: {
+    backgroundColor: '#FF3B30',
+    padding: 10,
+    borderRadius: 5,
+    marginTop: 10,
+    alignSelf: 'center',
+  },
+  // 채팅방 나가기 버튼 비활성화
+  // leaveButtonText: {
+  //   color: 'white',
+  //   fontWeight: 'bold',
+  // },
 });
 
 export default React.memo(ChatScreen);

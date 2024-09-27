@@ -69,6 +69,7 @@ export type Chat = {
   participants: string[];
   lastMessage?: Message;
   updatedAt: Date;
+  collectionRejected?: boolean; // 이 줄을 추가합니다
 };
 
 export type CollectionHistoryItem = {

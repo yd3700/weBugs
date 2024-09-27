@@ -13,9 +13,13 @@ type Message = {
   content: string;
   senderId: string;
   timestamp: firebase.firestore.Timestamp;
+  media?: {
+    type: 'photo' | 'video';
+    url: string;
+  };
 };
 
-type Chat = {
+type ChatListItem = {
   id: string;
   participants: string[];
   lastMessage: Message | null;
@@ -23,7 +27,8 @@ type Chat = {
   otherUserProfilePicture: string;
   updatedAt: firebase.firestore.Timestamp;
   unreadCount: number;
-  hidden?: boolean; // 숨김 상태를 나타내는 필드 추가
+  hidden?: boolean;
+  collectionRejected?: boolean;
 };
 
 type ChatListScreenProps = {
@@ -32,7 +37,7 @@ type ChatListScreenProps = {
 
 const ChatListScreen: React.FC<ChatListScreenProps> = ({ setTotalUnreadCount }) => {
   const navigation = useNavigation<ChatListScreenNavigationProp>();
-  const [chats, setChats] = useState<Chat[]>([]);
+  const [chats, setChats] = useState<ChatListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const calculateUnreadCount = useCallback((messages: Message[], lastRead: firebase.firestore.Timestamp, currentUserId: string) => {
@@ -48,16 +53,18 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ setTotalUnreadCount }) 
     }
 
     const unsubscribe = firestore.collection('chats')
-    .where('participants', 'array-contains', user.uid)
-    .onSnapshot(async (snapshot) => {
-      const fetchedChats: Chat[] = [];
-      let totalUnread = 0;
+      .where('participants', 'array-contains', user.uid)
+      .onSnapshot(async (snapshot) => {
+        const fetchedChats: ChatListItem[] = [];
+        let totalUnread = 0;
 
-      for (const doc of snapshot.docs) {
-        const chatData = doc.data();
-        
-        // 채집 완료된 채팅방 제외
-        if (chatData.collectionCompleted) continue;
+        for (const doc of snapshot.docs) {
+          const chatData = doc.data();
+          // 삭제된 채팅방은 제외
+          if (chatData.deleted) continue;
+          
+          // 채집 완료 및 수락된 채팅방 제외
+          if (chatData.collectionCompleted && !chatData.collectionRejected) continue;
 
           const otherUserId = chatData.participants.find((id: string) => id !== user.uid);
           
@@ -79,6 +86,7 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ setTotalUnreadCount }) 
               updatedAt: chatData.updatedAt,
               unreadCount,
               hidden: chatData.hidden || false,
+              collectionRejected: chatData.collectionRejected || false,
             });
           }
         }
@@ -91,8 +99,8 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ setTotalUnreadCount }) 
         setIsLoading(false);
       });
 
-      return () => unsubscribe();
-    }, [navigation, calculateUnreadCount, setTotalUnreadCount]);
+    return () => unsubscribe();
+  }, [navigation, calculateUnreadCount, setTotalUnreadCount]);
 
   const formatTimestamp = (timestamp: firebase.firestore.Timestamp | Date | { seconds: number; nanoseconds: number } | string | null): string => {
     if (timestamp instanceof firebase.firestore.Timestamp) {
@@ -107,7 +115,7 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ setTotalUnreadCount }) 
     return 'Invalid date';
   };
 
-  const renderItem = ({ item }: { item: Chat }) => {
+  const renderItem = ({ item }: { item: ChatListItem }) => {
     const otherUserId = item.participants.find(id => id !== auth.currentUser?.uid);
     
     if (!otherUserId) return null;
@@ -124,6 +132,14 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ setTotalUnreadCount }) 
       }
     };
 
+    const getLastMessageContent = (message: Message | null) => {
+      if (!message) return 'No messages';
+      if (message.media) {
+        return message.media.type === 'photo' ? '사진을 보냈습니다' : '동영상을 보냈습니다';
+      }
+      return message.content;
+    };
+
     return (
       <TouchableOpacity onPress={() => navigation.navigate('Chat', { chatId: item.id, otherUserId })}>
         <View style={styles.chatItem}>
@@ -131,7 +147,7 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ setTotalUnreadCount }) 
           <View style={styles.chatInfo}>
             <Text style={styles.userName}>{item.otherUserName}</Text>
             <Text style={styles.lastMessage} numberOfLines={1}>
-              {item.lastMessage ? item.lastMessage.content : 'No messages'}
+              {getLastMessageContent(item.lastMessage)}
             </Text>
           </View>
           <View style={styles.rightContainer}>

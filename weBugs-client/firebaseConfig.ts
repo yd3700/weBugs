@@ -302,6 +302,37 @@ const deleteChatRoom = async (chatId: string) => {
   }
 };
 
+const leaveChatRoom = async (chatId: string, userId: string) => {
+  const chatRef = firestore.collection('chats').doc(chatId);
+  
+  try {
+    const chatDoc = await chatRef.get();
+    const chatData = chatDoc.data();
+
+    if (chatData) {
+      const updatedParticipants = chatData.participants.filter((id: string) => id !== userId);
+      
+      if (updatedParticipants.length === 0) {
+        // 모든 참가자가 나갔을 때 채팅방 삭제 대신 숨김 처리
+        await chatRef.update({
+          hidden: true,
+          hiddenAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      } else {
+        // 참가자 목록 업데이트
+        await chatRef.update({
+          participants: updatedParticipants
+        });
+      }
+    }
+
+    console.log("User left the chat room:", userId);
+  } catch (error) {
+    console.error("Error leaving chat room:", error);
+    throw error;
+  }
+};
+
 export { 
   auth, 
   firestore, 
@@ -317,5 +348,6 @@ export {
   listenToUnreadMessageCount,
   deleteChatRoom,
   hideChatRoom,
+  leaveChatRoom,
   firebase 
 };
