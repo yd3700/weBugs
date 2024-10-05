@@ -333,6 +333,28 @@ const leaveChatRoom = async (chatId: string, userId: string) => {
   }
 };
 
+const updateUserLoginStatus = async (userId: string, isLoggedIn: boolean) => {
+  try {
+    await firestore.collection('users').doc(userId).update({
+      isLoggedIn: isLoggedIn,
+      lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (error) {
+    console.error("Error updating user login status:", error);
+  }
+};
+
+const checkUserLoginStatus = async (userId: string) => {
+  try {
+    const userDoc = await firestore.collection('users').doc(userId).get();
+    const userData = userDoc.data();
+    return userData?.isLoggedIn || false;
+  } catch (error) {
+    console.error("Error checking user login status:", error);
+    return false;
+  }
+};
+
 export { 
   auth, 
   firestore, 
@@ -349,5 +371,7 @@ export {
   deleteChatRoom,
   hideChatRoom,
   leaveChatRoom,
+  updateUserLoginStatus,
+  checkUserLoginStatus,
   firebase 
 };

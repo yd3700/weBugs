@@ -3,7 +3,7 @@ import { View, Text, TextInput, Button, StyleSheet, ActivityIndicator, Image, To
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
-import { auth, firestore, firebase, storage } from '../../firebaseConfig';
+import { auth, firestore, firebase, storage, updateUserLoginStatus  } from '../../firebaseConfig';
 import * as ImagePicker from 'expo-image-picker';
 
 const ProfileScreen = () => {
@@ -113,6 +113,24 @@ const ProfileScreen = () => {
     );
   }
 
+  const handleLogout = async () => {
+    try {
+      const user = auth.currentUser;
+      if (user) {
+        await updateUserLoginStatus(user.uid, false);
+      }
+      await auth.signOut();
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+      setError("로그아웃 중 오류가 발생했습니다.");
+    }
+  };
+
+
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>프로필</Text>
@@ -141,7 +159,8 @@ const ProfileScreen = () => {
         <Text style={styles.sectionButtonText}>채집내역</Text>
       </TouchableOpacity>
 
-      <Button title="로그아웃" onPress={() => auth.signOut().then(() => navigation.navigate('Login'))} />
+      {/* <Button title="로그아웃" onPress={() => auth.signOut().then(() => navigation.navigate('Login'))} /> */}
+      <Button title="로그아웃" onPress={handleLogout} />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </ScrollView>
