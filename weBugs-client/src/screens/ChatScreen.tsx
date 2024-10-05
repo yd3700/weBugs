@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Alert, Image } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, Message, User } from '../types/navigation';
-import { auth, firestore, createChatMessage, uploadMedia, sendCollectionCompleteMessage, leaveChatRoom , deleteChatRoom  } from '../../firebaseConfig';
+import { auth, firestore, createChatMessage, uploadMedia, sendCollectionCompleteMessage, leaveChatRoom, deleteChatRoom } from '../../firebaseConfig';
 import firebase from 'firebase/compat/app';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import MessageItem from '../components/MessageItem';
 import MediaOptions from '../components/MediaOptions';
 import CompletionModal from '../components/CompletionModal';
+import UserProfileModal from '../components/UserProfileModal'; // 새로 추가
 
 type ChatScreenRouteProp = RouteProp<RootStackParamList, 'Chat'>;
 type ChatScreenNavigationProp = StackNavigationProp<RootStackParamList>;
@@ -53,12 +54,11 @@ const ChatScreen: React.FC = () => {
   const [completionRating, setCompletionRating] = useState(5);
   const [showMediaOptions, setShowMediaOptions] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-
   const { chatId, otherUserId } = route.params;
-  
   const flatListRef = useRef<FlatList>(null);
   const otherUserRef = useRef<User | null>(null);
   const currentUserRef = useRef<User | null>(null);
+  const [isProfileModalVisible, setIsProfileModalVisible] = useState(false);
 
   useEffect(() => {
     if (!chatId || !otherUserId) {
@@ -260,12 +260,17 @@ const ChatScreen: React.FC = () => {
     setShowMediaOptions(false);
   }, [handleMediaUpload]);
 
+  const handleProfilePress = () => {
+    setIsProfileModalVisible(true);
+  };
+
   const renderItem = useCallback(({ item }: { item: ChatItem }) => (
     <MessageItem
       item={item}
       currentUser={currentUserRef.current}
       otherUser={otherUserRef.current}
       onCompletionPress={() => setShowCompletionModal(true)}
+      onProfilePress={handleProfilePress} // 새로 추가
     />
   ), []);
 
@@ -339,6 +344,11 @@ const ChatScreen: React.FC = () => {
         onRatingChange={setCompletionRating}
         onAccept={() => handleCompletionResponse(true)}
         onReject={() => handleCompletionResponse(false)}
+      />
+      <UserProfileModal
+        visible={isProfileModalVisible}
+        onClose={() => setIsProfileModalVisible(false)}
+        userId={otherUserId}
       />
     </View>
   );

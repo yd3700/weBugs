@@ -8,13 +8,14 @@ type MessageItemProps = {
   currentUser: User | null;
   otherUser: User | null;
   onCompletionPress: () => void;
+  onProfilePress: () => void; // 새로 추가
 };
 
 function isMessage(item: ChatItem): item is Message {
   return 'senderId' in item && 'content' in item;
 }
 
-const MessageItem: React.FC<MessageItemProps> = React.memo(({ item, currentUser, otherUser, onCompletionPress }) => {
+const MessageItem: React.FC<MessageItemProps> = React.memo(({ item, currentUser, otherUser, onCompletionPress, onProfilePress }) => {
   const renderDateSeparator = useCallback((date: string) => (
     <View style={styles.dateSeparator}>
       <Text style={styles.dateSeparatorText}>{date}</Text>
@@ -49,7 +50,7 @@ const MessageItem: React.FC<MessageItemProps> = React.memo(({ item, currentUser,
   }, [onCompletionPress]);
 
   const renderUserInfo = useCallback((user: User | null) => (
-    <View style={styles.userInfo}>
+    <TouchableOpacity onPress={onProfilePress} style={styles.userInfo}>
       {user?.profilePicture ? (
         <Image source={{ uri: user.profilePicture }} style={styles.avatar} />
       ) : (
@@ -58,8 +59,8 @@ const MessageItem: React.FC<MessageItemProps> = React.memo(({ item, currentUser,
         </View>
       )}
       <Text style={styles.userName}>{user?.name}</Text>
-    </View>
-  ), []);
+    </TouchableOpacity>
+  ), [onProfilePress]);
 
   const messageContent = useMemo(() => {
     if (!isMessage(item) || !currentUser) {
