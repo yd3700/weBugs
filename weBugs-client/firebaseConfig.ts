@@ -2,6 +2,7 @@ import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
 import 'firebase/compat/storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 //기존 weBugs
 // const firebaseConfig = {
@@ -13,6 +14,10 @@ import 'firebase/compat/storage';
 //     appId: "1:492807142709:web:31f67f999ed8b55d2b607c",
 //     measurementId: "G-YZPYFRSDZ8"
 // };
+
+const LAST_ACTIVE_KEY = 'lastActiveTimestamp';
+const USER_ID_KEY = 'userId';
+const SESSION_DURATION = 3 * 24 * 60 * 60 * 1000; // 3일
 
 // //testweBugs
 const firebaseConfig = {
@@ -72,9 +77,29 @@ const uploadImage = async (uri: string): Promise<string> => {
   }
 };
 
+const checkExistingChat = async (currentUserId: string, otherUserId: string, requestId: string) => {
+  try {
+    const chatSnapshot = await firestore.collection('chats')
+      .where('participants', 'array-contains', currentUserId)
+      .where('requestId', '==', requestId)
+      .get();
+
+    if (!chatSnapshot.empty) {
+      // 이미 해당 요청에 대한 채팅방이 존재
+      return chatSnapshot.docs[0].id;
+    }
+
+    // 해당 요청에 대한 채팅방이 없으면 null 반환
+    return null;
+  } catch (error) {
+    console.error("Error checking existing chat:", error);
+    throw error;
+  }
+};
+
 // 채팅방 생성 로직
-const createChatRoom = async (currentUserId: string, otherUserId: string) => {
-  const chatId = firestore.collection('chats').doc().id; // 새로운 고유 ID 생성
+const createChatRoom = async (currentUserId: string, otherUserId: string, requestId: string) => {
+  const chatId = firestore.collection('chats').doc().id;
   const chatRef = firestore.collection('chats').doc(chatId);
   
   try {
@@ -86,7 +111,8 @@ const createChatRoom = async (currentUserId: string, otherUserId: string) => {
       lastRead: {
         [currentUserId]: firebase.firestore.Timestamp.now(),
         [otherUserId]: firebase.firestore.Timestamp.now()
-      }
+      },
+      requestId: requestId // 요청 ID 추가
     });
     console.log("New chat room created:", chatId);
     return chatId;
@@ -344,7 +370,7 @@ const updateUserLoginStatus = async (userId: string, isLoggedIn: boolean) => {
   }
 };
 
-const checkUserLoginStatus = async (userId: string) => {
+const checkUserLoginStatus = async (userId: string): Promise<boolean> => {
   try {
     const userDoc = await firestore.collection('users').doc(userId).get();
     const userData = userDoc.data();
@@ -355,12 +381,62 @@ const checkUserLoginStatus = async (userId: string) => {
   }
 };
 
+const initializeAuth = async () => {
+  try {
+    const lastActiveTimestamp = await AsyncStorage.getItem(LAST_ACTIVE_KEY);
+    const userId = await AsyncStorage.getItem(USER_ID_KEY);
+    
+    if (lastActiveTimestamp && userId) {
+      const lastActive = parseInt(lastActiveTimestamp, 10);
+      if (Date.now() - lastActive > SESSION_DURATION) {
+        await signOut();
+      } else {
+        await updateLastActive();
+      }
+    }
+  } catch (error) {
+    console.error('Error initializing auth:', error);
+  }
+};
+
+const updateLastActive = async () => {
+  try {
+    await AsyncStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString());
+  } catch (error) {
+    console.error('Error updating last active timestamp:', error);
+  }
+};
+
+const signIn = async (email: string, password: string) => {
+  const userCredential = await auth.signInWithEmailAndPassword(email, password);
+  const user = userCredential.user;
+  if (user) {
+    const isAlreadyLoggedIn = await checkUserLoginStatus(user.uid);
+    if (isAlreadyLoggedIn) {
+      throw new Error('이 계정은 이미 다른 기기에서 로그인되어 있습니다.');
+    }
+    await updateUserLoginStatus(user.uid, true);
+    await AsyncStorage.setItem('userId', user.uid);
+    await updateLastActive();
+  }
+};
+
+const signOut = async () => {
+  const user = auth.currentUser;
+  if (user) {
+    await updateUserLoginStatus(user.uid, false);
+  }
+  await auth.signOut();
+  await AsyncStorage.removeItem('userId');
+};
+
 export { 
   auth, 
   firestore, 
   storage,
   uploadImage,
   uploadMedia,
+  checkExistingChat,
   createChatRoom,
   createChatMessage,
   sendCollectionCompleteMessage,
@@ -373,5 +449,9 @@ export {
   leaveChatRoom,
   updateUserLoginStatus,
   checkUserLoginStatus,
+  initializeAuth,
+  updateLastActive,
+  signIn,
+  signOut,
   firebase 
 };

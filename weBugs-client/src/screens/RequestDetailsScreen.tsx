@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Alert } from 'react-native';
 import { RouteProp, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, ServiceRequest } from '../types/navigation';
-import { firestore, auth, createChatRoom } from '../../firebaseConfig';
+import { firestore, auth, checkExistingChat, createChatRoom } from '../../firebaseConfig';
 
 type RequestDetailsScreenRouteProp = RouteProp<RootStackParamList, 'RequestDetails'>;
 type RequestDetailsScreenNavigationProp = StackNavigationProp<RootStackParamList>;
@@ -72,11 +72,33 @@ const RequestDetailsScreen = ({ route }: Props) => {
         return;
       }
   
-      const chatId = await createChatRoom(currentUserId, otherUserId);
-      navigation.navigate('Chat', { chatId, otherUserId });
+      // 기존 채팅방 확인
+      const existingChatId = await checkExistingChat(currentUserId, otherUserId, request.id);
+      
+      if (existingChatId) {
+        // 기존 채팅방이 있으면 해당 채팅방으로 이동
+        Alert.alert(
+          "기존 채팅방 존재",
+          "이미 이 요청에 대한 채팅방이 존재합니다. 해당 채팅방으로 이동하시겠습니까?",
+          [
+            {
+              text: "취소",
+              style: "cancel"
+            },
+            {
+              text: "이동",
+              onPress: () => navigation.navigate('Chat', { chatId: existingChatId, otherUserId })
+            }
+          ]
+        );
+      } else {
+        // 새 채팅방 생성
+        const chatId = await createChatRoom(currentUserId, otherUserId, request.id);
+        navigation.navigate('Chat', { chatId, otherUserId });
+      }
     } catch (error) {
-      console.error('Error creating chat room:', error);
-      setError('채팅방을 생성하는 중 오류가 발생했습니다.');
+      console.error('Error handling chat:', error);
+      setError('채팅방을 생성하거나 확인하는 중 오류가 발생했습니다.');
     }
   };
 

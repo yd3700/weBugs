@@ -122,7 +122,7 @@ const HomeScreen = () => {
     <TouchableWithoutFeedback onPress={dismissSearch}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.location}>우제2동</Text>
+          {/* <Text style={styles.location}>우제2동</Text> */}
           <TouchableOpacity onPress={toggleSearch}>
             <Icon name="search-outline" size={24} />
           </TouchableOpacity>

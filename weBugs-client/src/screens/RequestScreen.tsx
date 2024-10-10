@@ -38,18 +38,41 @@ const RequestScreen = () => {
       setError('위치 정보 접근 권한이 거부되었습니다.');
       return;
     }
-
+  
     try {
       let location = await Location.getCurrentPositionAsync({});
       const address = await Location.reverseGeocodeAsync({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude
       });
-
+  
       if (address.length > 0) {
-        const { region, city, district } = address[0];
-        const fullAddress = `${region} ${city} ${district}`.trim();
-        setLocation(fullAddress);
+        const { region, city, subregion, district } = address[0];
+        
+        // 시/도, 구/군, 동/읍/면을 조합하여 주소 생성
+        let formattedAddress = '';
+        
+        // 시/도 (region) 추가
+        if (region) formattedAddress += region + ' ';
+        
+        // 구/군 (subregion) 추가
+        if (subregion && subregion !== region && subregion !== city) {
+          formattedAddress += subregion + ' ';
+        } else if (city && city !== region) {
+          formattedAddress += city + ' ';
+        }
+        
+        // 동/읍/면 (district) 추가
+        if (district) formattedAddress += district;
+  
+        // 주소가 비어있지 않은 경우에만 설정
+        if (formattedAddress.trim() !== '') {
+          setLocation(formattedAddress.trim());
+        } else {
+          setError('상세 주소를 가져올 수 없습니다.');
+        }
+      } else {
+        setError('주소를 가져올 수 없습니다.');
       }
     } catch (error) {
       console.error('Error getting location:', error);
