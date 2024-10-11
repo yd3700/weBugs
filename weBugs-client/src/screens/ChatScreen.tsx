@@ -153,27 +153,27 @@ const ChatScreen: React.FC = () => {
     }
   }, [chatId, otherUserId]);
 
-  const handleLeaveChat = useCallback(async () => {
-    try {
-      await leaveChatRoom(chatId, auth.currentUser!.uid);
-      navigation.navigate('HomeTabs');
-    } catch (error) {
-      console.error("Error leaving chat room:", error);
-      Alert.alert("오류", "채팅방을 나가는 중 오류가 발생했습니다.");
-    }
-  }, [chatId, navigation]);
-
   const handleCompletionResponse = useCallback(async (accepted: boolean) => {
     const responseMessage = accepted ? "수락됨" : "거절됨";
     await createChatMessage(chatId, auth.currentUser!.uid, otherUserId, responseMessage);
     
     if (accepted) {
       const currentUserId = auth.currentUser!.uid;
-      const requestSnapshot = await firestore.collection('serviceRequests')
-        .where('userId', '==', currentUserId).get();
       
-      if (!requestSnapshot.empty) {
-        const requestDoc = requestSnapshot.docs[0];
+      // 채팅방의 requestId를 가져옵니다.
+      const chatDoc = await firestore.collection('chats').doc(chatId).get();
+      const chatData = chatDoc.data();
+      const requestId = chatData?.requestId;
+  
+      if (!requestId) {
+        console.error('관련된 요청 ID를 찾을 수 없습니다.');
+        return;
+      }
+  
+      // requestId를 사용하여 정확한 서비스 요청을 찾습니다.
+      const requestDoc = await firestore.collection('serviceRequests').doc(requestId).get();
+      
+      if (requestDoc.exists) {
         const requestData = requestDoc.data();
         
         await requestDoc.ref.update({ 
@@ -186,8 +186,8 @@ const ChatScreen: React.FC = () => {
           collectorId: otherUserId,
           rating: completionRating,
           completedAt: firebase.firestore.FieldValue.serverTimestamp(),
-          requestTitle: requestData.title || '제목 없음',
-          requestImage: requestData.imageUrl || '',
+          requestTitle: requestData?.title || '제목 없음',
+          requestImage: requestData?.imageUrl || '',
           requestId: requestDoc.id
         });
   
@@ -202,9 +202,7 @@ const ChatScreen: React.FC = () => {
         collectionRejected: true,
         collectionRejectedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-      // 거절 시 채팅방에 남음
       Alert.alert("거절됨", "채집 완료 요청이 거절되었습니다.");
-      // 여기서 채팅방을 나가거나 삭제하지 않음
     }
     setShowCompletionModal(false);
   }, [chatId, otherUserId, completionRating, navigation]);
