@@ -12,7 +12,9 @@ type Message = {
   id: string;
   content: string;
   senderId: string;
+  recipientId: string;
   timestamp: firebase.firestore.Timestamp;
+  read: boolean;
   media?: {
     type: 'photo' | 'video';
     url: string;
@@ -40,10 +42,6 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ setTotalUnreadCount }) 
   const [chats, setChats] = useState<ChatListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const calculateUnreadCount = useCallback((messages: Message[], lastRead: firebase.firestore.Timestamp, currentUserId: string) => {
-    return messages.filter(msg => msg.timestamp > lastRead && msg.senderId !== currentUserId).length;
-  }, []);
-
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) {
@@ -60,10 +58,7 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ setTotalUnreadCount }) 
 
         for (const doc of snapshot.docs) {
           const chatData = doc.data();
-          // 삭제된 채팅방은 제외
           if (chatData.deleted) continue;
-          
-          // 채집 완료 및 수락된 채팅방 제외
           if (chatData.collectionCompleted && !chatData.collectionRejected) continue;
 
           const otherUserId = chatData.participants.find((id: string) => id !== user.uid);
@@ -72,8 +67,10 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ setTotalUnreadCount }) 
             const otherUserDoc = await firestore.collection('users').doc(otherUserId).get();
             const otherUserData = otherUserDoc.data();
             const messages: Message[] = chatData.messages || [];
-            const lastRead = chatData.lastRead?.[user.uid] || new firebase.firestore.Timestamp(0, 0);
-            const unreadCount = calculateUnreadCount(messages, lastRead, user.uid);
+            
+            const unreadCount = messages.filter(msg => 
+              msg.recipientId === user.uid && !msg.read
+            ).length;
 
             totalUnread += unreadCount;
 
@@ -100,7 +97,7 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ setTotalUnreadCount }) 
       });
 
     return () => unsubscribe();
-  }, [navigation, calculateUnreadCount, setTotalUnreadCount]);
+  }, [navigation, setTotalUnreadCount]);
 
   const formatTimestamp = (timestamp: firebase.firestore.Timestamp | Date | { seconds: number; nanoseconds: number } | string | null): string => {
     if (timestamp instanceof firebase.firestore.Timestamp) {

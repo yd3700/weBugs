@@ -3,6 +3,7 @@ import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
 import 'firebase/compat/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Message } from './src/types/navigation'; // 경로는 실제 파일 위치에 맞게 조정하세요
 
 //기존 weBugs
 // const firebaseConfig = {
@@ -195,15 +196,31 @@ const getChatList = async (userId: string) => {
 };
 
 // 메시지를 읽음 상태로 표시
-const markMessageAsRead = async (chatId: string, userId: string) => {
+const markMessageAsRead = async (chatId: string, messageId: string, userId: string) => {
   const chatRef = firestore.collection('chats').doc(chatId);
   
   try {
-    await chatRef.update({
-      [`lastRead.${userId}`]: firebase.firestore.Timestamp.now()
+    await firestore.runTransaction(async (transaction) => {
+      const chatDoc = await transaction.get(chatRef);
+      if (!chatDoc.exists) {
+        throw "Chat does not exist!";
+      }
+      
+      const chatData = chatDoc.data();
+      const updatedMessages = chatData?.messages.map((msg: Message) => {
+        if (msg.messageId === messageId && msg.recipientId === userId) {
+          return { ...msg, read: true };
+        }
+        return msg;
+      });
+
+      transaction.update(chatRef, { 
+        messages: updatedMessages,
+        [`lastRead.${userId}`]: firebase.firestore.FieldValue.serverTimestamp()
+      });
     });
   } catch (error) {
-    console.error("Error marking messages as read:", error);
+    console.error("Error marking message as read:", error);
     throw error;
   }
 };
@@ -218,10 +235,9 @@ const getUnreadMessageCount = async (userId: string) => {
     let unreadCount = 0;
     snapshot.forEach(doc => {
       const chatData = doc.data();
-      const lastRead = chatData.lastRead[userId] || new firebase.firestore.Timestamp(0, 0);
       if (chatData.messages) {
         unreadCount += chatData.messages.filter((message: any) => 
-          message.timestamp > lastRead && message.senderId !== userId
+          message.recipientId === userId && !message.read
         ).length;
       }
     });
@@ -241,10 +257,9 @@ const listenToUnreadMessageCount = (userId: string, callback: (count: number) =>
       let unreadCount = 0;
       snapshot.forEach(doc => {
         const chatData = doc.data();
-        const lastRead = chatData.lastRead[userId] || new firebase.firestore.Timestamp(0, 0);
         if (chatData.messages) {
           unreadCount += chatData.messages.filter((message: any) => 
-            message.timestamp > lastRead && message.senderId !== userId
+            message.recipientId === userId && !message.read
           ).length;
         }
       });
