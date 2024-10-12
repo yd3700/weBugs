@@ -5,6 +5,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, ServiceRequest } from '../types/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { auth, firestore } from '../../firebaseConfig';
+import firebase from 'firebase/compat/app';
 
 const HomeScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -15,6 +16,7 @@ const HomeScreen = () => {
   const [filteredPosts, setFilteredPosts] = useState<ServiceRequest[]>([]);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed'>('all');
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(user => {
@@ -29,6 +31,12 @@ const HomeScreen = () => {
     });
     return () => unsubscribe();
   }, [navigation]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchPosts();
+    }
+  }, [isAuthenticated, statusFilter]);
 
   useEffect(() => {
     if (searchQuery.trim() === '') {
@@ -46,9 +54,11 @@ const HomeScreen = () => {
 
   const fetchPosts = async () => {
     try {
-      const snapshot = await firestore.collection('serviceRequests')
-        .where('status', 'in', ['pending', 'completed'])
-        .get();
+      let query: firebase.firestore.Query<firebase.firestore.DocumentData> = firestore.collection('serviceRequests');
+      if (statusFilter !== 'all') {
+        query = query.where('status', '==', statusFilter);
+      }
+      const snapshot = await query.get();
       const fetchedPosts: ServiceRequest[] = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
@@ -122,10 +132,29 @@ const HomeScreen = () => {
     <TouchableWithoutFeedback onPress={dismissSearch}>
       <View style={styles.container}>
         <View style={styles.header}>
-          {/* <Text style={styles.location}>우제2동</Text> */}
           <TouchableOpacity onPress={toggleSearch}>
             <Icon name="search-outline" size={24} />
           </TouchableOpacity>
+          <View style={styles.filterButtons}>
+            <TouchableOpacity
+              style={[styles.filterButton, statusFilter === 'all' && styles.activeFilterButton]}
+              onPress={() => setStatusFilter('all')}
+            >
+              <Text style={[styles.filterButtonText, statusFilter === 'all' && styles.activeFilterButtonText]}>전체</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterButton, statusFilter === 'pending' && styles.activeFilterButton]}
+              onPress={() => setStatusFilter('pending')}
+            >
+              <Text style={[styles.filterButtonText, statusFilter === 'pending' && styles.activeFilterButtonText]}>요청중</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterButton, statusFilter === 'completed' && styles.activeFilterButton]}
+              onPress={() => setStatusFilter('completed')}
+            >
+              <Text style={[styles.filterButtonText, statusFilter === 'completed' && styles.activeFilterButtonText]}>완료</Text>
+            </TouchableOpacity>
+          </View>
         </View>
         {showSearch && (
           <View style={styles.searchContainer}>
@@ -228,6 +257,26 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  filterButtons: {
+    flexDirection: 'row',
+  },
+  filterButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginLeft: 5,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  activeFilterButton: {
+    backgroundColor: '#007AFF',
+  },
+  filterButtonText: {
+    color: '#007AFF',
+  },
+  activeFilterButtonText: {
+    color: 'white',
   },
 });
 
