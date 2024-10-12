@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, ScrollView, TouchableOpacity, Image, Platform, Alert } from 'react-native';
+import { 
+  View, Text, TextInput, Button, StyleSheet, ScrollView, 
+  TouchableOpacity, Image, Platform, Alert, ActivityIndicator 
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
@@ -19,6 +22,7 @@ const RequestScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [image, setImage] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     getLocation();
@@ -49,23 +53,15 @@ const RequestScreen = () => {
       if (address.length > 0) {
         const { region, city, subregion, district } = address[0];
         
-        // 시/도, 구/군, 동/읍/면을 조합하여 주소 생성
         let formattedAddress = '';
-        
-        // 시/도 (region) 추가
         if (region) formattedAddress += region + ' ';
-        
-        // 구/군 (subregion) 추가
         if (subregion && subregion !== region && subregion !== city) {
           formattedAddress += subregion + ' ';
         } else if (city && city !== region) {
           formattedAddress += city + ' ';
         }
-        
-        // 동/읍/면 (district) 추가
         if (district) formattedAddress += district;
   
-        // 주소가 비어있지 않은 경우에만 설정
         if (formattedAddress.trim() !== '') {
           setLocation(formattedAddress.trim());
         } else {
@@ -117,7 +113,10 @@ const RequestScreen = () => {
     await ref.put(blob);
     return ref.getDownloadURL();
   };
+
   const handleRequest = async () => {
+    if (isUploading) return; // 이미 업로드 중이면 함수 실행 중지
+
     const user = auth.currentUser;
     if (!user) {
       setError('로그인이 필요합니다.');
@@ -134,6 +133,15 @@ const RequestScreen = () => {
       return;
     }
 
+    if (!image) {
+      setError('최소 1개의 사진을 첨부해주세요.');
+      return;
+    }
+
+    setIsUploading(true);
+    setError(null);
+    setSuccess(null);
+
     try {
       let imageUrl = null;
       if (image) {
@@ -146,11 +154,10 @@ const RequestScreen = () => {
         transactionType,
         amount: transactionType === 'money' ? parseFloat(amount) : 0,
         location,
-        image,
+        imageUrl,
         status: 'pending',
         createdAt: new Date(),
         updatedAt: new Date(),
-		imageUrl,
       });
       setSuccess('요청이 성공적으로 생성되었습니다.');
       setTitle('');
@@ -161,6 +168,8 @@ const RequestScreen = () => {
       setImage(null);
     } catch (error) {
       setError('요청 생성 중 오류가 발생했습니다.');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -215,7 +224,11 @@ const RequestScreen = () => {
         </TouchableOpacity>
       </View>
       <View style={styles.imageContainer}>
-        {image && <Image source={{ uri: image }} style={styles.image} />}
+        {image ? (
+          <Image source={{ uri: image }} style={styles.image} />
+        ) : (
+          <Text style={styles.imageRequiredText}>최소 1개의 사진을 첨부해주세요.</Text>
+        )}
         <View style={styles.imageButtonContainer}>
           <TouchableOpacity style={styles.imageButton} onPress={handleImagePick}>
             <Text style={styles.imageButtonText}>갤러리에서 선택</Text>
@@ -227,7 +240,14 @@ const RequestScreen = () => {
       </View>
       {error && <Text style={styles.error}>{error}</Text>}
       {success && <Text style={styles.success}>{success}</Text>}
-      <Button title="요청 보내기" onPress={handleRequest} />
+      {isUploading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#0000ff" />
+          <Text style={styles.loadingText}>업로드 중...</Text>
+        </View>
+      ) : (
+        <Button title="요청 보내기" onPress={handleRequest} disabled={isUploading} />
+      )}
     </ScrollView>
   );
 };
@@ -323,6 +343,20 @@ const styles = StyleSheet.create({
   success: {
     color: 'green',
     marginBottom: 20,
+  },
+  imageRequiredText: {
+    textAlign: 'center',
+    color: 'red',
+    marginBottom: 10,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#0000ff',
   },
 });
 
