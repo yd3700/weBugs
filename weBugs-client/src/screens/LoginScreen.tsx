@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, TextInput, Button, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, TextInput, Text, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
-import { auth, signIn, updateLastActive, checkUserLoginStatus, signOut } from '../../firebaseConfig';
+import { signIn, updateLastActive, signOut } from '../../firebaseConfig';
+import commonStyles from '../styles/commonStyles'
 
 const LoginScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList, 'Login'>>();
@@ -15,7 +16,7 @@ const LoginScreen = () => {
   const handleLogin = async () => {
     setIsLoading(true);
     setError(null);
-
+  
     try {
       await signIn(email, password);
       navigation.reset({
@@ -23,7 +24,13 @@ const LoginScreen = () => {
         routes: [{ name: 'HomeTabs' }],
       });
     } catch (error: any) {
-      if (error.message === '이 계정은 이미 다른 기기에서 로그인되어 있습니다.') {
+      if (error.code === 'auth/invalid-email') {
+        setError('이메일 주소 형식이 올바르지 않습니다.');
+      } else if (error.code === 'auth/user-not-found') {
+        setError('등록되지 않은 이메일 주소입니다.');
+      } else if (error.code === 'auth/wrong-password') {
+        setError('비밀번호가 올바르지 않습니다.');
+      } else if (error.message === '이 계정은 이미 다른 기기에서 로그인되어 있습니다.') {
         Alert.alert(
           "중복 로그인",
           "이 계정은 이미 다른 기기에서 로그인되어 있습니다. 기존 세션을 로그아웃하고 이 기기에서 로그인하시겠습니까?",
@@ -48,7 +55,7 @@ const LoginScreen = () => {
           ]
         );
       } else {
-        setError(error.message);
+        setError('로그인 중 오류가 발생했습니다. 다시 시도해 주세요.');
       }
     } finally {
       setIsLoading(false);
@@ -73,29 +80,46 @@ const LoginScreen = () => {
         onChangeText={setPassword}
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Button title="로그인" onPress={handleLogin} disabled={isLoading} />
-      {isLoading && <ActivityIndicator size="large" color="#0000ff" />}
-      <Button title="회원가입" onPress={() => navigation.navigate('SignUp')} />
+      <TouchableOpacity 
+        style={[styles.button, isLoading && styles.disabledButton]} 
+        onPress={handleLogin} 
+        disabled={isLoading}
+      >
+        <Text style={styles.buttonText}>로그인</Text>
+      </TouchableOpacity>
+      {isLoading && <ActivityIndicator size="large" color="#468585" />}
+      <TouchableOpacity 
+        style={styles.button} 
+        onPress={() => navigation.navigate('SignUp')}
+      >
+        <Text style={styles.buttonText}>회원가입</Text>
+      </TouchableOpacity>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  ...commonStyles,
   container: {
-    flex: 1,
+    ...commonStyles.container,
     justifyContent: 'center',
     padding: 20,
   },
   input: {
+    ...commonStyles.input,
     height: 40,
-    borderColor: 'gray',
+    borderColor: '#50B498',
     borderWidth: 1,
     marginBottom: 20,
     paddingLeft: 10,
+    borderRadius: 10,
   },
   error: {
     color: 'red',
     marginBottom: 20,
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
 });
 

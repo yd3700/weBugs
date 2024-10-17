@@ -11,6 +11,8 @@ import MessageItem from '../components/MessageItem';
 import MediaOptions from '../components/MediaOptions';
 import CompletionModal from '../components/CompletionModal';
 import UserProfileModal from '../components/UserProfileModal';
+import commonStyles from '../styles/commonStyles'
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type ChatScreenRouteProp = RouteProp<RootStackParamList, 'Chat'>;
 type ChatScreenNavigationProp = StackNavigationProp<RootStackParamList>;
@@ -330,15 +332,22 @@ const ChatScreen: React.FC = () => {
   }
 
   return (
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Text style={styles.backButtonText}>{'<'}</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{otherUserRef.current?.name || '채팅'}</Text>
+      </View>
     <View style={styles.container}>
       {messages.length > 0 ? memoizedFlatList : <Text>메시지가 없습니다.</Text>}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 115 : 0}
         style={styles.inputContainer}
       >
         <TouchableOpacity onPress={() => setShowMediaOptions(true)} style={styles.mediaButton}>
-          <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
+          <Ionicons name="add-circle-outline" size={24} color="#50B498" />
         </TouchableOpacity>
         <TextInput
           style={styles.input}
@@ -351,6 +360,7 @@ const ChatScreen: React.FC = () => {
           <Text style={styles.sendButtonText}>전송</Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>
+      </View>
       <MediaOptions
         visible={showMediaOptions}
         onClose={() => setShowMediaOptions(false)}
@@ -371,26 +381,58 @@ const ChatScreen: React.FC = () => {
         onClose={() => setIsProfileModalVisible(false)}
         userId={otherUserId}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
 
 const styles = StyleSheet.create({
-  container: {
+  ...commonStyles,
+  safeArea: {
     flex: 1,
     backgroundColor: '#F5F5F5',
   },
-  messageList: {
-    paddingVertical: 20,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: 'rgba(222, 249, 196, 0.3)',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+  },
+  backButton: {
+    padding: 10,
+  },
+  backButtonText: {
+    color: 'gray',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 20,
+  },
+  messageContainer: {
+    backgroundColor: '#F0FFF0',
+    padding: 10,
+    borderRadius: 10,
+    marginVertical: 5,
+  },
+  messageText: {
+    color: 'black',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'white',
     borderTopWidth: 1,
-    borderTopColor: '#CCCCCC',
+    borderTopColor: '#A9F0D1',
+    paddingBottom: 10,
+  },
+  messageList: {
+    paddingVertical: 20,
   },
   input: {
     flex: 1,
@@ -403,7 +445,7 @@ const styles = StyleSheet.create({
     maxHeight: 100,
   },
   sendButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#50B498',
     padding: 10,
     borderRadius: 20,
     marginLeft: 10,

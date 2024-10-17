@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  View, Text, TextInput, Button, StyleSheet, ScrollView, 
+  View, Text, TextInput, StyleSheet, ScrollView, 
   TouchableOpacity, Image, Platform, Alert, ActivityIndicator 
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -9,6 +9,9 @@ import { RootStackParamList } from '../types/navigation';
 import { firestore, auth, storage } from '../../firebaseConfig';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
+import commonStyles from '../styles/commonStyles'
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 
 type RequestScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Request'>;
 
@@ -174,100 +177,118 @@ const RequestScreen = () => {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>서비스 요청</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="제목"
-        value={title}
-        onChangeText={setTitle}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="설명"
-        value={description}
-        onChangeText={setDescription}
-        multiline
-      />
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={[styles.button, transactionType === 'money' && styles.activeButton]}
-          onPress={() => setTransactionType('money')}
-        >
-          <Text style={[styles.buttonText, transactionType === 'money' && styles.activeButtonText]}>금전 거래</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.button, transactionType === 'volunteer' && styles.activeButton]}
-          onPress={() => setTransactionType('volunteer')}
-        >
-          <Text style={[styles.buttonText, transactionType === 'volunteer' && styles.activeButtonText]}>봉사하기</Text>
-        </TouchableOpacity>
-      </View>
-      {transactionType === 'money' && (
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView 
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+      >
+        <Text style={styles.title}>서비스 요청</Text>
         <TextInput
           style={styles.input}
-          placeholder="금액"
-          value={amount}
-          onChangeText={setAmount}
-          keyboardType="numeric"
+          placeholder="제목"
+          value={title}
+          onChangeText={setTitle}
         />
-      )}
-      <View style={styles.locationContainer}>
         <TextInput
-          style={[styles.input, styles.locationInput]}
-          placeholder="출몰 위치"
-          value={location}
-          onChangeText={setLocation}
+          style={[styles.input, styles.multilineInput]}
+          placeholder="설명"
+          value={description}
+          onChangeText={setDescription}
+          multiline
         />
-        <TouchableOpacity style={styles.refreshButton} onPress={getLocation}>
-          <Text style={styles.refreshButtonText}>현재 위치</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={styles.imageContainer}>
-        {image ? (
-          <Image source={{ uri: image }} style={styles.image} />
-        ) : (
-          <Text style={styles.imageRequiredText}>최소 1개의 사진을 첨부해주세요.</Text>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={[styles.button, transactionType === 'money' && styles.activeButton]}
+            onPress={() => setTransactionType('money')}
+          >
+            <Text style={[styles.buttonText, transactionType === 'money' && styles.activeButtonText]}>금전 거래</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.button, transactionType === 'volunteer' && styles.activeButton]}
+            onPress={() => setTransactionType('volunteer')}
+          >
+            <Text style={[styles.buttonText, transactionType === 'volunteer' && styles.activeButtonText]}>봉사하기</Text>
+          </TouchableOpacity>
+        </View>
+        {transactionType === 'money' && (
+          <TextInput
+            style={styles.input}
+            placeholder="금액"
+            value={amount}
+            onChangeText={setAmount}
+            keyboardType="numeric"
+          />
         )}
-        <View style={styles.imageButtonContainer}>
-          <TouchableOpacity style={styles.imageButton} onPress={handleImagePick}>
-            <Text style={styles.imageButtonText}>갤러리에서 선택</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.imageButton} onPress={handleCamera}>
-            <Text style={styles.imageButtonText}>사진 촬영</Text>
+        <View style={styles.locationContainer}>
+          <TextInput
+            style={[styles.input, styles.locationInput]}
+            placeholder="출몰 위치"
+            value={location}
+            onChangeText={setLocation}
+          />
+          <TouchableOpacity style={styles.refreshButton} onPress={getLocation}>
+            <Text style={styles.buttonText}>현재 위치</Text>
           </TouchableOpacity>
         </View>
-      </View>
-      {error && <Text style={styles.error}>{error}</Text>}
-      {success && <Text style={styles.success}>{success}</Text>}
-      {isUploading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0000ff" />
-          <Text style={styles.loadingText}>업로드 중...</Text>
+        <View style={styles.imageContainer}>
+          {image ? (
+            <Image source={{ uri: image }} style={styles.image} />
+          ) : (
+            <Text style={styles.imageRequiredText}>최소 1개의 사진을 첨부해주세요.</Text>
+          )}
+          <View style={styles.imageButtonContainer}>
+            <TouchableOpacity style={styles.button} onPress={handleImagePick}>
+              <Text style={styles.buttonText}>갤러리에서 선택</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={handleCamera}>
+              <Text style={styles.buttonText}>사진 촬영</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      ) : (
-        <Button title="요청 보내기" onPress={handleRequest} disabled={isUploading} />
-      )}
-    </ScrollView>
+        {error && <Text style={styles.error}>{error}</Text>}
+        {success && <Text style={styles.success}>{success}</Text>}
+        {isUploading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#0000ff" />
+            <Text style={styles.loadingText}>업로드 중...</Text>
+          </View>
+        ) : (
+          <TouchableOpacity 
+            style={[styles.button, styles.submitButton]} 
+            onPress={handleRequest} 
+            disabled={isUploading}
+          >
+            <Text style={styles.buttonText}>요청 보내기</Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  ...commonStyles,
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'white',
+  },
   container: {
     flex: 1,
+  },
+  contentContainer: {
     padding: 20,
+    paddingBottom: 1, // 하단에 추가 패딩
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
+    ...commonStyles.title,
   },
   input: {
-    height: 40,
-    borderColor: 'gray',
-    borderWidth: 1,
+    ...commonStyles.input,
     marginBottom: 20,
-    paddingLeft: 10,
+  },
+  multilineInput: {
+    height: 100,
+    textAlignVertical: 'top',
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -275,24 +296,18 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   button: {
+    ...commonStyles.button,
     flex: 1,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    backgroundColor: '#f0f0f0',
     marginHorizontal: 5,
   },
   activeButton: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: '#BEDC74',
   },
   buttonText: {
-    textAlign: 'center',
-    color: '#333',
+    ...commonStyles.buttonText,
   },
   activeButtonText: {
-    color: 'white',
+    color: 'gray',
   },
   locationContainer: {
     flexDirection: 'row',
@@ -306,12 +321,8 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   refreshButton: {
-    backgroundColor: '#007AFF',
+    ...commonStyles.button,
     padding: 10,
-    borderRadius: 5,
-  },
-  refreshButtonText: {
-    color: 'white',
   },
   imageContainer: {
     marginBottom: 20,
@@ -324,17 +335,6 @@ const styles = StyleSheet.create({
   imageButtonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  imageButton: {
-    backgroundColor: '#007AFF',
-    padding: 10,
-    borderRadius: 5,
-    flex: 1,
-    marginHorizontal: 5,
-  },
-  imageButtonText: {
-    color: 'white',
-    textAlign: 'center',
   },
   error: {
     color: 'red',
@@ -357,6 +357,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: '#0000ff',
+  },
+  submitButton: {
+    marginTop: 20,
+    marginBottom: 20, // 버튼 아래 여백 추가
   },
 });
 

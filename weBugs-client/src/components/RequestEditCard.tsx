@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Image 
 import { Ionicons } from '@expo/vector-icons';
 import { firestore, storage } from '../../firebaseConfig';
 import * as ImagePicker from 'expo-image-picker';
+import commonStyles from '../styles/commonStyles';
 
 import { ServiceRequest } from '../types/navigation';
 
@@ -159,10 +160,11 @@ const RequestEditCard: React.FC<RequestEditCardProps> = ({ request, onClose, onU
 };
 
 const styles = StyleSheet.create({
+  ...commonStyles,
   container: {
     flex: 1,
     backgroundColor: 'white',
-    padding: 20,
+    padding: 20,  
   },
   header: {
     flexDirection: 'row',
@@ -197,12 +199,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   imagePickerButton: {
-    backgroundColor: '#007AFF',
-    padding: 10,
-    borderRadius: 5,
+    ...commonStyles.button,
+    backgroundColor: '#BEDC74',
+    flex: 1,
+    marginHorizontal: 5,
   },
   imagePickerButtonText: {
-    color: 'white',
+    color: 'black',
     fontSize: 16,
   },
   inputContainer: {
@@ -237,11 +240,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activeTransactionType: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: '#BEDC74',
   },
   activeText: {
-    color: 'white',
+    color: 'black',
   },
   inactiveText: {
     color: 'black',
@@ -251,16 +253,17 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   updateButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#BEDC74',
     padding: 15,
     borderRadius: 5,
     alignItems: 'center',
     marginTop: 20,
   },
   updateButtonText: {
-    color: 'white',
+    color: 'black',
     fontSize: 18,
     fontWeight: 'bold',
+    marginBottom: 20, // 버튼 아래 여백 추가
   },
 });
 

@@ -4,10 +4,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { firestore, auth } from '../../firebaseConfig';
 import RequestEditCard from '../components/RequestEditCard';
 import { ServiceRequest } from '../types/navigation';
+import commonStyles from '../styles/commonStyles';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 
 type CategoryType = 'pending' | 'completed' | 'hidden';
 
 const RequestHistoryScreen = () => {
+  const navigation = useNavigation<StackNavigationProp<any>>();
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -124,39 +129,73 @@ const RequestHistoryScreen = () => {
   );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.categoryContainer}>
-        {renderCategory('pending', '요청중')}
-        {renderCategory('completed', '완료')}
-        {renderCategory('hidden', '숨김')}
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Text style={styles.backButtonText}>{'<'}</Text>
+        </TouchableOpacity>
+        {/* <Text style={styles.headerTitle}>요청 내역</Text> */}
       </View>
-      <FlatList
-        data={filteredRequests}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-      />
-      <Modal
-        visible={isModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setIsModalVisible(false)}
-      >
-        {selectedRequest && (
-          <RequestEditCard
-            request={selectedRequest}
-            onClose={() => setIsModalVisible(false)}
-            onUpdate={(updatedRequest) => {
-              setIsModalVisible(false);
-            }}
-          />
-        )}
-      </Modal>
-      {renderStatusChangeModal()}
-    </View>
+      <View style={styles.container}>
+        <View style={styles.categoryContainer}>
+          {renderCategory('pending', '요청중')}
+          {renderCategory('completed', '완료')}
+          {renderCategory('hidden', '숨김')}
+        </View>
+        <FlatList
+          data={filteredRequests}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+        />
+        <Modal
+          visible={isModalVisible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setIsModalVisible(false)}
+        >
+          {selectedRequest && (
+            <RequestEditCard
+              request={selectedRequest}
+              onClose={() => setIsModalVisible(false)}
+              onUpdate={(updatedRequest) => {
+                setIsModalVisible(false);
+              }}
+            />
+          )}
+        </Modal>
+        {renderStatusChangeModal()}
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  ...commonStyles,
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: 'rgba(222, 249, 196, 0.3)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(222, 249, 196, 0.3)',
+  },
+  backButton: {
+    padding: 10,
+  },
+  backButtonText: {
+    color: 'gray',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 20,
+  },
   container: {
     flex: 1,
     padding: 10,
@@ -167,20 +206,21 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   categoryButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    backgroundColor: 'white',
+    padding: 10,
     borderRadius: 20,
-    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
+    borderColor: '#DEF9C4',
   },
   selectedCategory: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#DEF9C4',
   },
   categoryText: {
     fontSize: 16,
     color: '#333',
   },
   selectedCategoryText: {
-    color: 'white',
+    color: 'black',
   },
   requestItem: {
     flexDirection: 'row',

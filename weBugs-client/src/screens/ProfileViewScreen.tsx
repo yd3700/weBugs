@@ -5,6 +5,8 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
 import { auth, firestore, firebase, storage } from '../../firebaseConfig';
 import * as ImagePicker from 'expo-image-picker';
+import commonStyles from '../styles/commonStyles';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const ProfileViewScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -114,43 +116,76 @@ const ProfileViewScreen = () => {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>프로필</Text>
-      <View style={styles.profileContainer}>
-        <TouchableOpacity onPress={handleImagePick} style={styles.imageContainer}>
-          {profilePicture ? (
-            <Image source={{ uri: profilePicture }} style={styles.profileImage} />
-          ) : (
-            <View style={styles.placeholderImage}>
-              <Text>프로필 이미지 추가</Text>
-            </View>
-          )}
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Text style={styles.backButtonText}>{'<'}</Text>
         </TouchableOpacity>
-        <Text style={styles.userinfo}>닉네임 : {name}</Text>
-        <Text style={styles.userinfo}>계정 주소 : {email}</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="전화번호"
-          value={phone}
-          onChangeText={setPhone}
-        />
+        {/* <Text style={styles.headerTitle}>프로필 보기</Text> */}
       </View>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Button title="프로필 업데이트" onPress={handleUpdateProfile} />
-    </ScrollView>
+      <ScrollView style={styles.container}>
+        <View style={styles.profileContainer}>
+          <TouchableOpacity onPress={handleImagePick} style={styles.imageContainer}>
+            {profilePicture ? (
+              <Image source={{ uri: profilePicture }} style={styles.profileImage} />
+            ) : (
+              <View style={styles.placeholderImage}>
+                <Text>프로필 이미지 추가</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <Text style={styles.userinfo}>닉네임 : {name}</Text>
+          <Text style={styles.userinfo}>계정 주소 : {email}</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="전화번호"
+            value={phone}
+            onChangeText={setPhone}
+          />
+        </View>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        <TouchableOpacity style={styles.updateButton} onPress={handleUpdateProfile}>
+          <Text style={styles.updateButtonText}>프로필 업데이트</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  ...commonStyles,
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: 'rgba(222, 249, 196, 0.3)',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1,
+  },
+  backButton: {
+    padding: 10,
+  },
+  backButtonText: {
+    color: 'gray',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 20,
+  },
   container: {
     flex: 1,
     padding: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
+    paddingTop: 60, // 헤더의 높이만큼 상단 패딩 추가
   },
   profileContainer: {
     alignItems: 'center',
@@ -158,6 +193,7 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     marginBottom: 10,
+    padding: 30,
   },
   profileImage: {
     width: 150,
@@ -183,6 +219,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 20,
     paddingLeft: 10,
+    width: '100%',
   },
   error: {
     color: 'red',
@@ -193,11 +230,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
-  sectionButtonText: {
+  updateButton: {
+    backgroundColor: '#50B498',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  updateButtonText: {
     color: 'white',
     fontSize: 18,
-    textAlign: 'center',
+    fontWeight: 'bold',
   },
 });
 

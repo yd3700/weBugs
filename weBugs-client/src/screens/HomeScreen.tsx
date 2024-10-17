@@ -6,6 +6,7 @@ import { RootStackParamList, ServiceRequest } from '../types/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { auth, firestore } from '../../firebaseConfig';
 import firebase from 'firebase/compat/app';
+import commonStyles from '../styles/commonStyles'
 
 const HomeScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -181,14 +182,29 @@ const HomeScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  ...commonStyles,
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 15,
+    backgroundColor: 'white',
+  },
+  filterButton: {
+    backgroundColor: 'white',
+    padding: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#DEF9C4',
+  },
+  activeFilterButton: {
+    backgroundColor: '#DEF9C4',
+  },
+  filterButtonText: {
+    color: 'black',
+  },
+  activeFilterButtonText: {
+    color: '#2E8B57',
   },
   location: {
     fontSize: 18,
@@ -196,7 +212,7 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     padding: 10,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#9CDBA6',
   },
   searchInput: {
     backgroundColor: 'white',
@@ -260,23 +276,6 @@ const styles = StyleSheet.create({
   },
   filterButtons: {
     flexDirection: 'row',
-  },
-  filterButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    marginLeft: 5,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: '#007AFF',
-  },
-  activeFilterButton: {
-    backgroundColor: '#007AFF',
-  },
-  filterButtonText: {
-    color: '#007AFF',
-  },
-  activeFilterButtonText: {
-    color: 'white',
   },
 });
 

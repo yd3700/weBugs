@@ -4,6 +4,8 @@ import { RouteProp, useNavigation, useFocusEffect } from '@react-navigation/nati
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, ServiceRequest } from '../types/navigation';
 import { firestore, auth, checkExistingChat, createChatRoom } from '../../firebaseConfig';
+import commonStyles from '../styles/commonStyles';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type RequestDetailsScreenRouteProp = RouteProp<RootStackParamList, 'RequestDetails'>;
 type RequestDetailsScreenNavigationProp = StackNavigationProp<RootStackParamList>;
@@ -129,68 +131,78 @@ const RequestDetailsScreen = ({ route }: Props) => {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.card}>
-        {request.imageUrl && (
-          <Image source={{ uri: request.imageUrl }} style={styles.image} />
-        )}
-        <Text style={styles.title}>{request.title}</Text>
-        <Text style={[styles.status, request.status === 'completed' && styles.completedStatus]}>
-          상태: {request.status === 'completed' ? '완료됨' : request.status}
-        </Text>
-        
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>설명</Text>
-          <Text style={styles.description}>{request.description}</Text>
+    <SafeAreaView style={styles.container}>
+      <ScrollView>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Text style={styles.backButtonText}>{'<'}</Text>
+          </TouchableOpacity>
         </View>
+        <View style={styles.card}>
+          {request.imageUrl && (
+            <Image source={{ uri: request.imageUrl }} style={styles.image} />
+          )}
+          <Text style={styles.title}>{request.title}</Text>
+          <Text style={[styles.status, request.status === 'completed' && styles.completedStatus]}>
+            상태: {request.status === 'completed' ? '완료됨' : request.status}
+          </Text>
+          
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>설명</Text>
+            <Text style={styles.description}>{request.description}</Text>
+          </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>거래 정보</Text>
-          <Text style={styles.info}>거래 방법: {request.transactionType === 'money' ? '금전 거래' : '봉사하기'}</Text>
-          {request.transactionType === 'money' && request.amount && (
-            <Text style={styles.info}>금액: {request.amount.toLocaleString()}원</Text>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>거래 정보</Text>
+            <Text style={styles.info}>거래 방법: {request.transactionType === 'money' ? '금전 거래' : '봉사하기'}</Text>
+            {request.transactionType === 'money' && request.amount && (
+              <Text style={styles.info}>금액: {request.amount.toLocaleString()}원</Text>
+            )}
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>위치</Text>
+            <Text style={styles.info}>{request.location}</Text>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>생성 시간</Text>
+            <Text style={styles.info}>{formatDate(request.createdAt)}</Text>
+          </View>
+
+          {request.status === 'completed' && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>완료 시간</Text>
+              <Text style={styles.info}>{formatDate(request.updatedAt)}</Text>
+            </View>
           )}
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>위치</Text>
-          <Text style={styles.info}>{request.location}</Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>생성 시간</Text>
-          <Text style={styles.info}>{formatDate(request.createdAt)}</Text>
-        </View>
-
-        {request.status === 'completed' && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>완료 시간</Text>
-            <Text style={styles.info}>{formatDate(request.updatedAt)}</Text>
-          </View>
+        {request.status !== 'completed' && auth.currentUser?.uid !== request.userId && (
+          <TouchableOpacity 
+            style={styles.chatButton} 
+            onPress={handleChatPress}
+          >
+            <Text style={styles.chatButtonText}>채팅하기</Text>
+          </TouchableOpacity>
         )}
-      </View>
-
-      {request.status !== 'completed' && auth.currentUser?.uid !== request.userId && (
-        <TouchableOpacity 
-          style={styles.chatButton} 
-          onPress={handleChatPress}
-        >
-          <Text style={styles.chatButtonText}>채팅하기</Text>
-        </TouchableOpacity>
-      )}
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f0f0f0',
-  },
+  ...commonStyles,
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  headerTitle: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 20,
   },
   card: {
     backgroundColor: 'white',
@@ -205,6 +217,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: 'rgba(222, 249, 196, 0.3)',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1,
+  },
+  backButton: {
+    padding: 1,
+  },
+  backButtonText: {
+    color: 'gray',
+    fontSize: 20,
   },
   image: {
     width: '100%',
@@ -241,7 +270,7 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   chatButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#50B498',
     padding: 15,
     borderRadius: 10,
     margin: 10,

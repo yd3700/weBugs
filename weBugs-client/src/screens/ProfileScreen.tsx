@@ -5,6 +5,8 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
 import { auth, firestore, firebase, storage, updateUserLoginStatus  } from '../../firebaseConfig';
 import * as ImagePicker from 'expo-image-picker';
+import commonStyles from '../styles/commonStyles';
+
 
 const ProfileScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -160,7 +162,11 @@ const ProfileScreen = () => {
       </TouchableOpacity>
 
       {/* <Button title="로그아웃" onPress={() => auth.signOut().then(() => navigation.navigate('Login'))} /> */}
-      <Button title="로그아웃" onPress={handleLogout} />
+      {/* <Button title="로그아웃" onPress={handleLogout} /> */}
+
+      <TouchableOpacity style={styles.logoutButton} onPress={() => navigation.navigate('Login')}>
+        <Text style={styles.sectionButtonText}>로그아웃</Text>
+      </TouchableOpacity>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </ScrollView>
@@ -168,6 +174,32 @@ const ProfileScreen = () => {
 };
 
 const styles = StyleSheet.create({
+  ...commonStyles,
+  profileImage: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    borderWidth: 3,
+    borderColor: '#DEF9C4',
+  },
+  sectionButton: {
+    backgroundColor: '#50B498',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  sectionButtonText: {
+    color: 'white',
+    fontSize: 18,
+    textAlign: 'center',
+  },
+  logoutButton: {
+    backgroundColor: '#E85C0D',
+    padding: 9,
+    borderRadius: 5,
+    width: '100%',
+    alignItems: 'center',
+  },
   container: {
     flex: 1,
     padding: 20,
@@ -185,11 +217,6 @@ const styles = StyleSheet.create({
   imageContainer: {
     marginBottom: 10,
   },
-  profileImage: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-  },
   placeholderImage: {
     width: 150,
     height: 150,
@@ -199,7 +226,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   nickname: {
-    fontSize: 18,
+    fontSize: 30,
     fontWeight: 'bold',
     marginTop: 10,
   },
@@ -218,17 +245,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  sectionButton: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-  sectionButtonText: {
-    color: 'white',
-    fontSize: 18,
-    textAlign: 'center',
   },
 });
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import commonStyles from '../styles/commonStyles'
 
 type MediaOptionsProps = {
   visible: boolean;
@@ -41,6 +42,7 @@ const MediaOptions: React.FC<MediaOptionsProps> = ({
 );
 
 const styles = StyleSheet.create({
+  ...commonStyles,
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -55,7 +57,7 @@ const styles = StyleSheet.create({
     width: '80%',
   },
   optionButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#50B498',
     padding: 15,
     borderRadius: 5,
     marginBottom: 10,
@@ -68,7 +70,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   cancelButton: {
-    backgroundColor: '#FF3B30',
+    backgroundColor: '#E85C0D',
     padding: 15,
     borderRadius: 5,
     width: '100%',

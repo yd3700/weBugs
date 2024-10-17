@@ -187,7 +187,7 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ setTotalUnreadCount }) 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f0f0',
+    // backgroundColor: '#A9F0D1', // 배경색을 '#A9F0D1'로 변경
   },
   loadingContainer: {
     flex: 1,

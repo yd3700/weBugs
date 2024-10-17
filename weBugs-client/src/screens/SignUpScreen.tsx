@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, Button, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, TextInput, Text, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
 import { auth, firestore, firebase } from '../../firebaseConfig';
+import commonStyles from '../styles/commonStyles'
 
 type SignUpScreenNavigationProp = StackNavigationProp<RootStackParamList, 'SignUp'>;
 
@@ -162,24 +163,29 @@ const SignUpScreen = () => {
         onChangeText={setPassword}
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Button title="회원가입" onPress={handleSignUp} disabled={isLoading || !isNameAvailable} />
-      {isLoading && <ActivityIndicator size="large" color="#0000ff" />}
+      <TouchableOpacity 
+        style={[styles.button, (isLoading || !isNameAvailable) && styles.disabledButton]} 
+        onPress={handleSignUp} 
+        disabled={isLoading || !isNameAvailable}
+      >
+        <Text style={styles.buttonText}>회원가입</Text>
+      </TouchableOpacity>
+      {isLoading && <ActivityIndicator size="large" color="#468585" />}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  ...commonStyles,
   container: {
-    flex: 1,
+    ...commonStyles.container,
     justifyContent: 'center',
     padding: 20,
   },
   input: {
-    height: 40,
-    borderColor: 'gray',
-    borderWidth: 1,
+    ...commonStyles.input,
     marginBottom: 20,
-    paddingLeft: 10,
+    borderRadius: 10,
   },
   error: {
     color: 'red',
@@ -192,6 +198,16 @@ const styles = StyleSheet.create({
   unavailable: {
     color: 'red',
     marginBottom: 10,
+  },
+  button: {
+    ...commonStyles.button,
+    marginBottom: 10,
+  },
+  buttonText: {
+    ...commonStyles.buttonText,
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
 });
 
